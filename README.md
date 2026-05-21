@@ -7,7 +7,7 @@ A modern, mobile-friendly CRM web app for fitness coaching businesses. Built wit
 - **Dashboard** — Overview cards for Total Leads, Active Clients, Pending Follow-Ups, and Completed Clients
 - **Leads & Clients** — Create, edit, delete, search, and filter contacts with full CRM fields
 - **Client Detail Page** — Contact info, timestamped notes, workflow checklists, and follow-ups
-- **Follow-Up System** — Set reminders with due dates, dashboard alerts, and email reminders
+- **Follow-Up System** — Set reminders with due dates, dashboard alerts, and automated email reminders (9AM & 1PM daily)
 - **Checklist Templates** — Custom onboarding and workflow checklists with toggleable items
 - **Activity Log** — Track all changes and interactions automatically
 - **Tags & Filters** — Organize contacts with tags and status filters
@@ -49,11 +49,18 @@ Create a `.env.local` file in the project root:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-RESEND_API_KEY=re_your_resend_key
-EMAIL_FROM=onboarding@resend.dev
+GMAIL_USER=your-email@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+REMINDER_EMAIL=your-email@example.com
+CRON_SECRET=any-random-secret-string
 ```
 
-> **Email Reminders:** Sign up at [resend.com](https://resend.com), verify your domain (or use the default `onboarding@resend.dev` for testing), and copy your API key.
+> **Gmail Setup (no DNS required):**
+> 1. Create or use a Gmail account
+> 2. Enable **2-Step Verification** in Google Account settings
+> 3. Go to **Security → App passwords** and generate a 16-character app password
+> 4. Use that as `GMAIL_APP_PASSWORD` (keep it secret)
+> 5. `REMINDER_EMAIL` is where you want reminders sent (can be same as `GMAIL_USER` or different)
 
 ### 4. Install & Run
 
@@ -81,11 +88,24 @@ git push origin main
 3. In **Environment Variables**, add:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `RESEND_API_KEY`
-   - `EMAIL_FROM` (e.g. `onboarding@resend.dev` or your verified domain)
+   - `GMAIL_USER`
+   - `GMAIL_APP_PASSWORD`
+   - `REMINDER_EMAIL`
+   - `CRON_SECRET` (any random string)
 4. Click **Deploy**
 
-### 3. Post-Deploy
+### 3. Enable Automated Email Reminders (GitHub Actions)
+
+The repo includes a free cron job that sends reminder emails at **9AM and 1PM ET** every day.
+
+1. Go to your GitHub repo → **Settings → Secrets and variables → Actions**
+2. Click **New repository secret** and add:
+   - `CRON_SECRET` — same random string you used in Vercel
+   - `VERCEL_DOMAIN` — your live URL (e.g. `https://cooperfitnesscrm.vercel.app`)
+
+That's it. GitHub Actions will automatically call your API twice daily.
+
+### 4. Post-Deploy
 
 After the first deploy, make sure your Supabase project URL is added to:
 - **Supabase > Authentication > URL Configuration > Redirect URLs**: `https://your-vercel-domain.vercel.app/**`

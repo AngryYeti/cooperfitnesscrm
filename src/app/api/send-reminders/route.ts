@@ -1,21 +1,33 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      return NextResponse.json({ error: "RESEND_API_KEY not configured" }, { status: 500 });
-    }
-    const resend = new Resend(resendApiKey);
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const cronSecret = request.headers.get("x-cron-secret");
+    const isCron = cronSecret === process.env.CRON_SECRET;
 
-    if (!user?.email) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const supabase = await createClient();
+    let toEmail: string | undefined;
+
+    if (isCron) {
+      toEmail = process.env.REMINDER_EMAIL || process.env.GMAIL_USER;
+    } else {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      toEmail = user?.email;
+    }
+
+    if (!toEmail) {
+      return NextResponse.json({ error: "No recipient email configured" }, { status: 500 });
+    }
+
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+
+    if (!gmailUser || !gmailPass) {
+      return NextResponse.json({ error: "Gmail not configured" }, { status: 500 });
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -56,11 +68,17 @@ export async function POST() {
 
     html += `<p style="margin-top:20px;font-size:12px;color:#666;">Sent from Cooper Fitness CRM</p>`;
 
-    const fromEmail = process.env.EMAIL_FROM || "onboarding@resend.dev";
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: gmailUser,
+        pass: gmailPass,
+      },
+    });
 
-    await resend.emails.send({
-      from: `Cooper Fitness CRM <${fromEmail}>`,
-      to: user.email,
+    await transporter.sendMail({
+      from: `"Cooper Fitness CRM" <${gmailUser}>`,
+      to: toEmail,
       subject: `You have ${followUps.length} follow-up${followUps.length > 1 ? "s" : ""} pending`,
       html,
     });

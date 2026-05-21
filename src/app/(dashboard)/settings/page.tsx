@@ -194,9 +194,13 @@ export default function SettingsPage() {
             <br />
             NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
             <br />
-            RESEND_API_KEY=re_...
+            GMAIL_USER=your-email@gmail.com
             <br />
-            EMAIL_FROM=onboarding@resend.dev
+            GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+            <br />
+            REMINDER_EMAIL=email-to-receive-reminders@example.com
+            <br />
+            CRON_SECRET=any-random-secret-string
           </code>
         </CardContent>
       </Card>
