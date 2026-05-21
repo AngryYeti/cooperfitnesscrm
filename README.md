@@ -1,36 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cooper Fitness CRM
 
-## Getting Started
+A modern, mobile-friendly CRM web app for fitness coaching businesses. Built with Next.js 16, TypeScript, Tailwind CSS, and Supabase.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Dashboard** — Overview cards for Total Leads, Active Clients, Pending Follow-Ups, and Completed Clients
+- **Leads & Clients** — Create, edit, delete, search, and filter contacts with full CRM fields
+- **Client Detail Page** — Contact info, timestamped notes, workflow checklists, and follow-ups
+- **Follow-Up System** — Set reminders with due dates and dashboard alerts for overdue items
+- **Checklist Templates** — Custom onboarding and workflow checklists with toggleable items
+- **Activity Log** — Track all changes and interactions automatically
+- **Tags & Filters** — Organize contacts with tags and status filters
+- **CSV Export** — Export your contacts at any time
+- **Dark/Light Mode** — Premium modern UI with theme support
+- **Responsive** — Fully optimized for desktop and mobile
+
+## Tech Stack
+
+- **Next.js 16** App Router
+- **TypeScript**
+- **Tailwind CSS v4**
+- **Supabase** (Auth + Database)
+- **Radix UI** primitives
+- **next-themes** for dark/light mode
+
+## Local Setup
+
+### 1. Prerequisites
+
+- Node.js 18+
+- npm
+- A Supabase account (free tier works)
+
+### 2. Supabase Setup
+
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Once created, go to **Project Settings > API** and copy:
+   - `Project URL`
+   - `anon public` API key
+3. Go to the **SQL Editor** and run the contents of `supabase/schema.sql`
+4. Go to **Authentication > Sign Up / Log In**, enable **Email** provider
+5. Create your admin user via **Authentication > Users > Add User** or sign up through the app
+
+### 3. Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Install & Run
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000). You will be redirected to `/login`. Sign in with your Supabase user credentials.
 
-## Learn More
+## Vercel Deployment
 
-To learn more about Next.js, take a look at the following resources:
+### 1. Push to GitHub
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+git add .
+git commit -m "Initial commit"
+git push origin main
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 2. Deploy on Vercel
 
-## Deploy on Vercel
+1. Go to [vercel.com](https://vercel.com) and click **Add New Project**
+2. Import your GitHub repository
+3. In **Environment Variables**, add:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Click **Deploy**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 3. Post-Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+After the first deploy, make sure your Supabase project URL is added to:
+- **Supabase > Authentication > URL Configuration > Redirect URLs**: `https://your-vercel-domain.vercel.app/**`
+- **Supabase > Authentication > URL Configuration > Site URL**: `https://your-vercel-domain.vercel.app`
+
+## Project Structure
+
+```
+src/
+  app/
+    (auth)/login/page.tsx        # Login page
+    (dashboard)/
+      page.tsx                   # Dashboard
+      clients/page.tsx           # Client list
+      clients/[id]/page.tsx      # Client detail
+      follow-ups/page.tsx        # Follow-ups
+      settings/page.tsx          # Settings / templates
+  components/
+    ui/                          # Reusable UI primitives
+    layout/                      # Sidebar, Header
+    forms/                       # ContactForm, FollowUpForm
+    clients/                     # ContactDetailView
+  lib/
+    actions/                     # Server Actions
+    supabase/                    # Client, server, middleware
+    types.ts                     # TypeScript types
+```
+
+## Database Schema
+
+The schema includes:
+- `contacts` — client and lead records
+- `notes` — timestamped notes per contact
+- `follow_ups` — reminders with due dates
+- `checklist_templates` — reusable workflow templates
+- `client_checklists` — assigned checklists per client
+- `activities` — auto-generated activity log
+
+All tables have Row Level Security (RLS) enabled and are restricted to authenticated users only.
