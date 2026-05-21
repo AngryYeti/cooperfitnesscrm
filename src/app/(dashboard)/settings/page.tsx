@@ -193,6 +193,10 @@ export default function SettingsPage() {
             NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
             <br />
             NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+            <br />
+            RESEND_API_KEY=re_...
+            <br />
+            EMAIL_FROM=onboarding@resend.dev
           </code>
         </CardContent>
       </Card>

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS follow_ups (
   title TEXT NOT NULL,
   due_date DATE NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT false,
+  reminder_sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

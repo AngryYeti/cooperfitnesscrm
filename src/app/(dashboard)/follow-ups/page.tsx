@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Check, Trash2, Calendar } from "lucide-react";
+import { Check, Trash2, Calendar, Mail } from "lucide-react";
 import { format } from "date-fns";
 import {
   getFollowUps,
@@ -23,6 +23,7 @@ export default function FollowUpsPage() {
   const [followUps, setFollowUps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const fetchFollowUps = useCallback(async () => {
     setLoading(true);
@@ -50,6 +51,24 @@ export default function FollowUpsPage() {
     fetchFollowUps();
   };
 
+  const handleSendReminders = async () => {
+    setSending(true);
+    try {
+      const res = await fetch("/api/send-reminders", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || `Sent ${data.sent} reminder(s) to your email.`);
+        fetchFollowUps();
+      } else {
+        alert(data.error || "Failed to send reminders.");
+      }
+    } catch (err) {
+      alert("Failed to send reminders.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const today = new Date().toISOString().split("T")[0];
 
   const pending = followUps.filter((fu) => !fu.completed);
@@ -62,10 +81,21 @@ export default function FollowUpsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Follow-Ups</h1>
           <p className="text-muted-foreground">Track reminders and tasks</p>
         </div>
-        <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-          <Calendar className="mr-2 h-4 w-4" />
-          New Follow-Up
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSendReminders}
+            disabled={sending}
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            {sending ? "Sending..." : "Email Reminders"}
+          </Button>
+          <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+            <Calendar className="mr-2 h-4 w-4" />
+            New Follow-Up
+          </Button>
+        </div>
       </div>
 
       {loading ? (

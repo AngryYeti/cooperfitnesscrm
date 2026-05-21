@@ -7,7 +7,7 @@ A modern, mobile-friendly CRM web app for fitness coaching businesses. Built wit
 - **Dashboard** — Overview cards for Total Leads, Active Clients, Pending Follow-Ups, and Completed Clients
 - **Leads & Clients** — Create, edit, delete, search, and filter contacts with full CRM fields
 - **Client Detail Page** — Contact info, timestamped notes, workflow checklists, and follow-ups
-- **Follow-Up System** — Set reminders with due dates and dashboard alerts for overdue items
+- **Follow-Up System** — Set reminders with due dates, dashboard alerts, and email reminders
 - **Checklist Templates** — Custom onboarding and workflow checklists with toggleable items
 - **Activity Log** — Track all changes and interactions automatically
 - **Tags & Filters** — Organize contacts with tags and status filters
@@ -49,7 +49,11 @@ Create a `.env.local` file in the project root:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+RESEND_API_KEY=re_your_resend_key
+EMAIL_FROM=onboarding@resend.dev
 ```
+
+> **Email Reminders:** Sign up at [resend.com](https://resend.com), verify your domain (or use the default `onboarding@resend.dev` for testing), and copy your API key.
 
 ### 4. Install & Run
 
@@ -77,6 +81,8 @@ git push origin main
 3. In **Environment Variables**, add:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM` (e.g. `onboarding@resend.dev` or your verified domain)
 4. Click **Deploy**
 
 ### 3. Post-Deploy
