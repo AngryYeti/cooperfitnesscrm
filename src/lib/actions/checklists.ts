@@ -23,6 +23,16 @@ export async function createChecklistTemplate(name: string, items: string[]) {
   return data as ChecklistTemplate;
 }
 
+export async function updateChecklistTemplate(id: string, name: string, items: string[]) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("checklist_templates")
+    .update({ name, items })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/settings");
+}
+
 export async function deleteChecklistTemplate(id: string) {
   const supabase = await createClient();
   const { error } = await supabase

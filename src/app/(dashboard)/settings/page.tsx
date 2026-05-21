@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, ListChecks } from "lucide-react";
+import { Plus, Trash2, ListChecks, Pencil } from "lucide-react";
 import {
   getChecklistTemplates,
   createChecklistTemplate,
+  updateChecklistTemplate,
   deleteChecklistTemplate,
 } from "@/lib/actions/checklists";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,9 @@ export default function SettingsPage() {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateItems, setNewTemplateItems] = useState<string[]>([""]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editItems, setEditItems] = useState<string[]>([]);
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
@@ -63,6 +67,33 @@ export default function SettingsPage() {
   const handleDeleteTemplate = async (id: string) => {
     await deleteChecklistTemplate(id);
     fetchTemplates();
+  };
+
+  const openEdit = (template: any) => {
+    setEditingTemplate(template);
+    setEditName(template.name);
+    setEditItems([...(template.items as string[])]);
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplate) return;
+    const items = editItems.filter((i) => i.trim() !== "");
+    if (!editName.trim() || items.length === 0) return;
+    await updateChecklistTemplate(editingTemplate.id, editName.trim(), items);
+    setEditingTemplate(null);
+    fetchTemplates();
+  };
+
+  const addEditItemField = () => setEditItems([...editItems, ""]);
+
+  const updateEditItemField = (index: number, value: string) => {
+    const items = [...editItems];
+    items[index] = value;
+    setEditItems(items);
+  };
+
+  const removeEditItemField = (index: number) => {
+    setEditItems(editItems.filter((_, i) => i !== index));
   };
 
   const addItemField = () => setNewTemplateItems([...newTemplateItems, ""]);
@@ -112,14 +143,24 @@ export default function SettingsPage() {
               <div key={template.id} className="rounded-lg border p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium">{template.name}</h3>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => handleDeleteTemplate(template.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => openEdit(template)}
+                    >
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => handleDeleteTemplate(template.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
                 <ul className="space-y-1">
                   {(template.items as string[]).map((item, i) => (
@@ -213,6 +254,72 @@ export default function SettingsPage() {
                 }
               >
                 Create Template
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!editingTemplate}
+        onOpenChange={(o) => !o && setEditingTemplate(null)}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Checklist Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Template Name</Label>
+              <Input
+                placeholder="e.g. New Client Onboarding"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Checklist Items</Label>
+              <div className="space-y-2">
+                {editItems.map((item, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder={`Item ${index + 1}`}
+                      value={item}
+                      onChange={(e) =>
+                        updateEditItemField(index, e.target.value)
+                      }
+                    />
+                    {editItems.length > 1 && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeEditItemField(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addEditItemField}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Item
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={handleUpdateTemplate}
+                disabled={
+                  !editName.trim() ||
+                  editItems.filter((i) => i.trim()).length === 0
+                }
+              >
+                Save Changes
               </Button>
             </DialogFooter>
           </div>
