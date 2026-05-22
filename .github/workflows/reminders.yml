@@ -1,5 +1,5 @@
 name: Send Follow-Up Reminders
-
+# Triggers every 3 hours via GitHub Actions
 on:
   schedule:
     # Every 3 hours
