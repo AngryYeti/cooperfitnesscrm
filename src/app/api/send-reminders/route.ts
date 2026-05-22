@@ -34,10 +34,8 @@ export async function POST(request: Request) {
 
     const { data: followUps, error } = await supabase
       .from("follow_ups")
-      .select("id, title, due_date, completed, reminder_sent_at, contacts(first_name, last_name)")
+      .select("id, title, due_date, completed, contacts(first_name, last_name)")
       .eq("completed", false)
-      .lte("due_date", today)
-      .is("reminder_sent_at", null)
       .order("due_date", { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -47,8 +45,9 @@ export async function POST(request: Request) {
 
     const overdue = followUps.filter((fu: any) => fu.due_date < today);
     const dueToday = followUps.filter((fu: any) => fu.due_date === today);
+    const upcoming = followUps.filter((fu: any) => fu.due_date > today);
 
-    let html = `<h2>Cooper Fitness CRM — Follow-Up Reminders</h2>`;
+    let html = `<h2>Cooper Fitness CRM — Pending Follow-Ups</h2>`;
 
     if (overdue.length > 0) {
       html += `<h3 style="color:#dc2626;">Overdue</h3><ul>`;
@@ -66,7 +65,15 @@ export async function POST(request: Request) {
       html += `</ul>`;
     }
 
-    html += `<p style="margin-top:20px;font-size:12px;color:#666;">Sent from Cooper Fitness CRM</p>`;
+    if (upcoming.length > 0) {
+      html += `<h3 style="color:#16a34a;">Upcoming</h3><ul>`;
+      upcoming.forEach((fu: any) => {
+        html += `<li><strong>${fu.contacts?.first_name} ${fu.contacts?.last_name}</strong> — ${fu.title} (due ${fu.due_date})</li>`;
+      });
+      html += `</ul>`;
+    }
+
+    html += `<p style="margin-top:20px;font-size:12px;color:#666;">Sent every 3 hours from Cooper Fitness CRM</p>`;
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -79,15 +86,9 @@ export async function POST(request: Request) {
     await transporter.sendMail({
       from: `"Cooper Fitness CRM" <${gmailUser}>`,
       to: toEmail,
-      subject: `You have ${followUps.length} follow-up${followUps.length > 1 ? "s" : ""} pending`,
+      subject: `${followUps.length} pending follow-up${followUps.length > 1 ? "s" : ""} — ${new Date().toLocaleDateString()}`,
       html,
     });
-
-    const ids = followUps.map((fu: any) => fu.id);
-    await supabase
-      .from("follow_ups")
-      .update({ reminder_sent_at: new Date().toISOString() })
-      .in("id", ids);
 
     return NextResponse.json({ sent: followUps.length });
   } catch (err: any) {

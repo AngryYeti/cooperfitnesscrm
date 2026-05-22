@@ -2,10 +2,8 @@ name: Send Follow-Up Reminders
 
 on:
   schedule:
-    # 9 AM ET = 14:00 UTC (EDT), 13:00 UTC (EST)
-    # 1 PM ET = 18:00 UTC (EDT), 17:00 UTC (EST)
-    # Using 13:00 and 17:00 UTC covers both EST and EDT roughly
-    - cron: "0 13,17 * * *"
+    # Every 3 hours
+    - cron: "0 */3 * * *"
   workflow_dispatch:
 
 jobs:
