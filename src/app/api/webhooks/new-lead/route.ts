@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const ALLOWED_ORIGINS = [
   "https://cooper-fitness.vercel.app",
@@ -26,10 +26,12 @@ export async function OPTIONS(request: Request) {
 
 export async function POST(request: Request) {
   const origin = request.headers.get("origin") || "";
+  console.log("[webhook] received from origin:", origin);
   const headers = corsHeaders(origin);
 
   try {
     const body = await request.json();
+    console.log("[webhook] body:", JSON.stringify(body));
     const name = body.name?.trim();
     const email = body.email?.trim();
     const goals = body.goals?.trim();
@@ -45,7 +47,7 @@ export async function POST(request: Request) {
     const firstName = nameParts[0] || name;
     const lastName = nameParts.slice(1).join(" ") || "Unknown";
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: existing } = await supabase
       .from("contacts")
@@ -91,12 +93,13 @@ export async function POST(request: Request) {
       completed: false,
     });
 
+    console.log("[webhook] created lead:", contact.id);
     return NextResponse.json(
       { success: true, id: contact.id },
       { status: 200, headers }
     );
   } catch (err: any) {
-    console.error("Webhook error:", err.message);
+    console.error("[webhook] error:", err.message);
     return NextResponse.json(
       { error: err.message },
       { status: 500, headers }

@@ -49,11 +49,14 @@ Create a `.env.local` file in the project root:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 GMAIL_USER=your-email@gmail.com
 GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
 REMINDER_EMAIL=your-email@example.com
 CRON_SECRET=any-random-secret-string
 ```
+
+> **Service Role Key:** Go to Supabase → Project Settings → API → `service_role key` (keep this secret — it bypasses RLS). Needed for the website lead webhook.
 
 > **Gmail Setup (no DNS required):**
 > 1. Create or use a Gmail account
@@ -88,6 +91,7 @@ git push origin main
 3. In **Environment Variables**, add:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
    - `GMAIL_USER`
    - `GMAIL_APP_PASSWORD`
    - `REMINDER_EMAIL`

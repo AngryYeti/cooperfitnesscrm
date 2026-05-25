@@ -194,6 +194,8 @@ export default function SettingsPage() {
             <br />
             NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
             <br />
+            SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+            <br />
             GMAIL_USER=your-email@gmail.com
             <br />
             GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
