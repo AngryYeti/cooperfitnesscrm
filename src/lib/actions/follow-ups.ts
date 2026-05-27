@@ -49,14 +49,18 @@ export async function createFollowUp(contactId: string, title: string, dueDate: 
     ? `${contact.first_name} ${contact.last_name}`
     : null;
 
-  await supabase.from("activities").insert({
+  const { error: activityError } = await supabase.from("activities").insert({
     type: "follow_up_created",
     contact_id: contactId,
     contact_name: contactName,
     description: `Created follow-up: ${title}`,
   });
 
-  await supabase.from("calendar_events").insert({
+  if (activityError) {
+    console.error("Failed to log activity:", activityError.message);
+  }
+
+  const { error: calError } = await supabase.from("calendar_events").insert({
     title: `Follow-up: ${title}`,
     description: contactName ? `Follow-up for ${contactName}` : "Follow-up",
     start_time: `${dueDate}T00:00:00`,
@@ -65,6 +69,11 @@ export async function createFollowUp(contactId: string, title: string, dueDate: 
     contact_id: contactId,
     color: "#f59e0b",
   });
+
+  if (calError) {
+    console.error("Failed to create calendar event:", calError.message);
+    throw new Error(`Failed to create calendar event: ${calError.message}`);
+  }
 
   revalidatePath("/follow-ups");
   revalidatePath("/");
