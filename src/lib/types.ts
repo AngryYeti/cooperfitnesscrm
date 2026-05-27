@@ -67,3 +67,17 @@ export interface Activity {
   description: string;
   created_at: string;
 }
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  start_time: string;
+  end_time: string;
+  all_day: boolean;
+  contact_id: string | null;
+  contacts?: { first_name: string; last_name: string } | null;
+  color: string | null;
+  google_event_id: string | null;
+  created_at: string;
+}

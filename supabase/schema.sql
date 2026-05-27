@@ -64,10 +64,24 @@ CREATE TABLE IF NOT EXISTS client_checklists (
 -- Activity log
 CREATE TABLE IF NOT EXISTS activities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  type TEXT NOT NULL CHECK (type IN ('contact_created', 'contact_updated', 'note_added', 'status_changed', 'follow_up_created', 'follow_up_completed')),
+  type TEXT NOT NULL CHECK (type IN ('contact_created', 'contact_updated', 'note_added', 'status_changed', 'follow_up_created', 'follow_up_completed', 'calendar_event_created', 'calendar_event_updated')),
   contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
   contact_name TEXT,
   description TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Calendar events
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  start_time TIMESTAMPTZ NOT NULL,
+  end_time TIMESTAMPTZ NOT NULL,
+  all_day BOOLEAN NOT NULL DEFAULT false,
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  color TEXT DEFAULT '#2563eb',
+  google_event_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -78,6 +92,7 @@ ALTER TABLE follow_ups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklist_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE client_checklists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users full access (single-user CRM)
 CREATE POLICY "allow_all_authenticated" ON contacts FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -86,6 +101,7 @@ CREATE POLICY "allow_all_authenticated" ON follow_ups FOR ALL TO authenticated U
 CREATE POLICY "allow_all_authenticated" ON checklist_templates FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_authenticated" ON client_checklists FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_authenticated" ON activities FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all_authenticated" ON calendar_events FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Seed data
 INSERT INTO contacts (first_name, last_name, phone, email, fitness_goal, status, source, date_added, tags)

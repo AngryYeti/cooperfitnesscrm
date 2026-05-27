@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarClock,
+  CalendarDays,
   Settings,
   Dumbbell,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
+  { name: "Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
