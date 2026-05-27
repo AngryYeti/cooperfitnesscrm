@@ -17,7 +17,7 @@ import {
   updateCalendarEvent,
 } from "@/lib/actions/calendar";
 import { getContacts } from "@/lib/actions/contacts";
-import { CalendarEvent } from "@/lib/types";
+import type { CalendarEvent } from "@/lib/types";
 import { format, parseISO, addWeeks, addMonths } from "date-fns";
 
 const COLORS = [
@@ -32,7 +32,7 @@ const COLORS = [
 ];
 
 const TASK_TYPES = [
-  { value: "", label: "None" },
+  { value: "none", label: "None" },
   { value: "Consultation", label: "Consultation" },
   { value: "Document Review", label: "Document Review" },
   { value: "Follow Up", label: "Follow Up" },
@@ -58,12 +58,13 @@ export function EventForm({
   const [description, setDescription] = useState(event?.description || "");
   const [allDay, setAllDay] = useState(event?.all_day || false);
   const [color, setColor] = useState(event?.color || "#2563eb");
-  const [taskType, setTaskType] = useState("");
+  const [taskType, setTaskType] = useState("none");
   const [contactId, setContactId] = useState(event?.contact_id || "");
   const [contacts, setContacts] = useState<
     { id: string; first_name: string; last_name: string }[]
   >([]);
   const [contactsLoaded, setContactsLoaded] = useState(false);
+  const [contactsError, setContactsError] = useState(false);
   const [recurring, setRecurring] = useState("none");
   const [recurCount, setRecurCount] = useState(4);
   const [startDate, setStartDate] = useState(() => {
@@ -75,25 +76,38 @@ export function EventForm({
     return format(d, "HH:mm");
   });
   const [endDate, setEndDate] = useState(() => {
-    const d = event ? parseISO(event.end_time) : defaultDate || new Date();
+    const d = event
+      ? parseISO(event.end_time)
+      : defaultDate
+        ? defaultDate
+        : new Date();
     return format(d, "yyyy-MM-dd");
   });
   const [endTime, setEndTime] = useState(() => {
-    const d = event ? parseISO(event.end_time) : defaultDate || new Date();
+    const d = event
+      ? parseISO(event.end_time)
+      : defaultDate
+        ? defaultDate
+        : new Date();
     return format(d, "HH:mm");
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const loadContacts = async () => {
-    if (contactsLoaded) return;
-    const data = await getContacts();
-    setContacts(data);
-    setContactsLoaded(true);
+    if (contactsLoaded || contactsError) return;
+    try {
+      const data = await getContacts();
+      setContacts(data);
+      setContactsLoaded(true);
+    } catch {
+      setContactsError(true);
+    }
   };
 
   const handleTaskTypeChange = (value: string) => {
     setTaskType(value);
-    if (value && (!title || TASK_TYPES.some((t) => t.value === title))) {
+    if (value !== "none" && (!title || TASK_TYPES.some((t) => t.value === title))) {
       setTitle(value);
     }
   };
@@ -121,10 +135,12 @@ export function EventForm({
     if (!title.trim()) return;
 
     setLoading(true);
+    setError("");
     try {
-      const finalTitle = taskType
-        ? `${taskType}: ${title.trim()}`
-        : title.trim();
+      const finalTitle =
+        taskType !== "none"
+          ? `${taskType}: ${title.trim()}`
+          : title.trim();
 
       const buildTimes = (offset = 0) => {
         let sd = startDate;
@@ -179,6 +195,8 @@ export function EventForm({
         }
       }
       onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -357,6 +375,8 @@ export function EventForm({
           ))}
         </div>
       </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button type="submit" className="w-full" disabled={loading}>
         {loading
