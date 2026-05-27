@@ -101,7 +101,9 @@ export function CalendarView() {
         id: e.id,
         title: e.title,
         start: new Date(e.start_time),
-        end: new Date(e.end_time),
+        end: e.all_day
+          ? addDays(new Date(e.start_time), 1)
+          : new Date(e.end_time),
         allDay: e.all_day,
         resource: e,
       }))

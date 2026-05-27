@@ -64,7 +64,7 @@ export async function createFollowUp(contactId: string, title: string, dueDate: 
     title: `Follow-up: ${title}`,
     description: contactName ? `Follow-up for ${contactName}` : "Follow-up",
     start_time: `${dueDate}T00:00:00`,
-    end_time: `${dueDate}T23:59:59`,
+    end_time: `${dueDate}T00:00:00`,
     all_day: true,
     contact_id: contactId,
     color: "#f59e0b",
