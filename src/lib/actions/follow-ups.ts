@@ -63,8 +63,8 @@ export async function createFollowUp(contactId: string, title: string, dueDate: 
   const { error: calError } = await supabase.from("calendar_events").insert({
     title: `Follow-up: ${title}`,
     description: contactName ? `Follow-up for ${contactName}` : "Follow-up",
-    start_time: `${dueDate}T00:00:00`,
-    end_time: `${dueDate}T00:00:00`,
+    start_time: `${dueDate}T12:00:00+00:00`,
+    end_time: `${dueDate}T12:00:00+00:00`,
     all_day: true,
     contact_id: contactId,
     color: "#f59e0b",

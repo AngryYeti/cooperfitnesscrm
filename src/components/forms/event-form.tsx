@@ -61,10 +61,10 @@ export function EventForm({
     setLoading(true);
     try {
       const start = allDay
-        ? `${startDate}T00:00:00`
+        ? `${startDate}T12:00:00+00:00`
         : `${startDate}T${startTime}:00`;
       const end = allDay
-        ? `${endDate}T23:59:59`
+        ? `${endDate}T12:00:00+00:00`
         : `${endDate}T${endTime}:00`;
 
       if (event) {
