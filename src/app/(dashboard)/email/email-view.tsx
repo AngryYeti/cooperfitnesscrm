@@ -162,15 +162,32 @@ export function EmailView() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>
-              Contacts ({filteredContacts.length})
+              Contacts ({filteredContacts.length}{" "}
+              {filteredContacts.length !== contacts.length && (
+                <span className="text-muted-foreground">
+                  of {contacts.length}
+                </span>
+              )}
             </Label>
-            <button
-              type="button"
-              onClick={toggleAllFiltered}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              {allFilteredSelected ? "Deselect all" : "Select all"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={toggleAllFiltered}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                {allFilteredSelected ? "Deselect filtered" : "Select filtered"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedIds(new Set(contacts.filter((c) => c.email).map((c) => c.id)));
+                  setResult(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Select all contacts
+              </button>
+            </div>
           </div>
           <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
             {filteredContacts.length === 0 ? (
