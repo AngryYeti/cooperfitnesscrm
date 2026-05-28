@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CalendarDays,
   Mail,
+  ClipboardCheck,
   Settings,
   Dumbbell,
   Menu,
@@ -34,6 +35,7 @@ const navItems = [
   { name: "Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
   { name: "Email", href: "/email", icon: Mail },
+  { name: "Intake", href: "/intake", icon: ClipboardCheck },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
