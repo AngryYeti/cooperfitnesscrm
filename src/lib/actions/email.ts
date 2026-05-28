@@ -45,10 +45,19 @@ export async function sendBulkEmails(
   for (const contact of contacts) {
     if (!contact.email) continue;
 
-    const personalizedBody = body
-      .replace(/\{\{first_name\}\}/g, contact.first_name)
-      .replace(/\{\{last_name\}\}/g, contact.last_name)
-      .replace(/\{\{full_name\}\}/g, `${contact.first_name} ${contact.last_name}`);
+    const firstName = contact.first_name || "";
+    const lastName = contact.last_name || "";
+    const fullName = [firstName, lastName].filter(Boolean).join(" ") || firstName || lastName;
+
+    let personalizedBody = body
+      .replace(/\{\{\s*first_name\s*\}\}/gi, firstName)
+      .replace(/\{\{\s*last_name\s*\}\}/gi, lastName)
+      .replace(/\{\{\s*full_name\s*\}\}/gi, fullName);
+
+    let personalizedSubject = subject
+      .replace(/\{\{\s*first_name\s*\}\}/gi, firstName)
+      .replace(/\{\{\s*last_name\s*\}\}/gi, lastName)
+      .replace(/\{\{\s*full_name\s*\}\}/gi, fullName);
 
     const html = `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -63,10 +72,10 @@ export async function sendBulkEmails(
 
     try {
       await transporter.sendMail({
-        from: "evan@cooper.fitness",
+        from: '"Cooper Fitness" <evan@cooper.fitness>',
         replyTo: "evan@cooper.fitness",
         to: contact.email,
-        subject,
+        subject: personalizedSubject,
         html,
       });
       sent++;

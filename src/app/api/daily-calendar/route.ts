@@ -92,7 +92,8 @@ export async function POST(request: Request) {
     });
 
     await transporter.sendMail({
-      from: `"Cooper Fitness CRM" <${gmailUser}>`,
+      from: '"Cooper Fitness" <evan@cooper.fitness>',
+      replyTo: "evan@cooper.fitness",
       to: toEmail,
       subject: `Today's Schedule \u2014 ${dateStr}`,
       html,
