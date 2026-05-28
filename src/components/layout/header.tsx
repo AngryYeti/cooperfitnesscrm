@@ -8,6 +8,7 @@ import {
   Users,
   CalendarClock,
   CalendarDays,
+  Mail,
   Settings,
   Dumbbell,
   Menu,
@@ -32,6 +33,7 @@ const navItems = [
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
+  { name: "Email", href: "/email", icon: Mail },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

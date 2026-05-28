@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
-  CalendarClock,
   CalendarDays,
+  CalendarClock,
+  Mail,
   Settings,
   Dumbbell,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const navItems = [
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
+  { name: "Email", href: "/email", icon: Mail },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
