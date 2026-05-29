@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getFormTemplate } from "@/components/intake/form-templates";
 import { FormRenderer } from "@/components/intake/form-renderer";
-import { saveFormData, getPacketByToken } from "@/lib/actions/intake";
+import { saveFormData, getPacketByToken, submitForSigning } from "@/lib/actions/intake";
 
 export default function OnboardingPage() {
   const { token } = useParams<{ token: string }>();
@@ -29,6 +29,9 @@ export default function OnboardingPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [signing, setSigning] = useState(false);
+  const [signingUrl, setSigningUrl] = useState<string | null>(null);
+  const [signingError, setSigningError] = useState("");
 
   const fetchData = useCallback(async () => {
     try {
@@ -63,6 +66,19 @@ export default function OnboardingPage() {
         setCurrentIndex(currentIndex + 1);
       } else {
         setCompleted(true);
+        if (packet) {
+          setSigning(true);
+          try {
+            const result = await submitForSigning(packet.id);
+            if (result.signingUrl) {
+              setSigningUrl(result.signingUrl);
+            }
+          } catch (err) {
+            setSigningError(err instanceof Error ? err.message : "Failed to start signing");
+          } finally {
+            setSigning(false);
+          }
+        }
       }
       fetchData();
     } finally {
@@ -94,9 +110,38 @@ export default function OnboardingPage() {
         <div className="text-center space-y-4 max-w-md mx-auto p-8">
           <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" />
           <h1 className="text-2xl font-bold">All Forms Completed!</h1>
-          <p className="text-muted-foreground">
-            Thank you, {packet?.contacts?.first_name}. Your intake forms have been submitted. Your coach will review and send the final documents for e-signature.
-          </p>
+
+          {signing && (
+            <div className="space-y-2">
+              <p className="text-muted-foreground">Preparing your documents for signature...</p>
+              <div className="h-2 w-48 mx-auto bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary animate-pulse w-2/3 rounded-full" />
+              </div>
+            </div>
+          )}
+
+          {signingUrl && !signing && (
+            <div className="space-y-3">
+              <p className="text-muted-foreground">
+                Your documents are ready. Click below to review and sign.
+              </p>
+              <a href={signingUrl} target="_blank" rel="noopener noreferrer">
+                <Button size="lg" className="w-full">
+                  Sign Documents
+                </Button>
+              </a>
+            </div>
+          )}
+
+          {signingError && !signing && (
+            <p className="text-sm text-destructive">{signingError}</p>
+          )}
+
+          {!signing && !signingUrl && !signingError && (
+            <p className="text-muted-foreground">
+              Thank you, {packet?.contacts?.first_name}. Your intake forms have been submitted successfully.
+            </p>
+          )}
         </div>
       </div>
     );

@@ -246,6 +246,80 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
   return { method: "link", signingUrl: intakeLink };
 }
 
+export async function submitForSigning(packetId: string) {
+  const supabase = await createClient();
+
+  const { data: packet, error } = await supabase
+    .from("intake_packets")
+    .select("*, contacts(first_name, last_name, email), intake_forms(*)")
+    .eq("id", packetId)
+    .single();
+
+  if (error || !packet) throw new Error("Packet not found");
+
+  const contact = packet.contacts as { first_name: string; last_name: string; email: string };
+  if (!contact.email) throw new Error("Contact has no email address");
+
+  const filledForms = (packet.intake_forms as { id: string; form_type: string; form_title: string; form_data: Record<string, unknown>; status: string }[]).filter(
+    (f) => f.status === "filled"
+  );
+
+  if (filledForms.length === 0) {
+    throw new Error("No forms have been filled out yet");
+  }
+
+  if (!isDocuSealConfigured()) {
+    await markPacketComplete(packetId);
+    return { method: "manual", signingUrl: null };
+  }
+
+  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_DOMAIN || "https://cooper-fitness.vercel.app"}/api/webhooks/docuseal`;
+
+  const submissionIds: number[] = [];
+  let lastEmbedSrc = "";
+
+  for (const f of filledForms) {
+    const htmlContent = generateFormHtml(f.form_title, f.form_data as Record<string, string>);
+
+    const { submissionId, embedSrc } = await createSubmissionFromHtml(
+      htmlContent,
+      f.form_title,
+      `${contact.first_name} ${contact.last_name}`,
+      contact.email,
+      undefined,
+      webhookUrl
+    );
+
+    submissionIds.push(submissionId);
+    if (embedSrc) lastEmbedSrc = embedSrc;
+
+    await supabase
+      .from("intake_forms")
+      .update({ docusign_document_id: String(submissionId) })
+      .eq("id", f.id);
+  }
+
+  await supabase
+    .from("intake_packets")
+    .update({
+      status: "sent",
+      docusign_envelope_id: submissionIds.join(","),
+      signing_url: lastEmbedSrc,
+      sent_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", packetId);
+
+  await supabase.from("intake_audit").insert({
+    packet_id: packetId,
+    contact_id: packet.contact_id,
+    action: "submitted_for_signing",
+    details: `DocuSeal submissions: ${submissionIds.join(", ")}`,
+  });
+
+  return { method: "docuseal", signingUrl: lastEmbedSrc, submissionIds };
+}
+
 export async function markPacketComplete(packetId: string) {
   const supabase = await createClient();
 
