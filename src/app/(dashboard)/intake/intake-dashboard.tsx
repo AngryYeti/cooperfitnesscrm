@@ -79,9 +79,16 @@ export function IntakeDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, c] = await Promise.all([getAllPackets(), getContacts()]);
-      setPackets(p as typeof packets);
+      const c = await getContacts();
       setContacts(c);
+    } catch (err) {
+      console.error("Failed to load contacts:", err);
+    }
+    try {
+      const p = await getAllPackets();
+      setPackets(p as typeof packets);
+    } catch (err) {
+      console.error("Failed to load packets:", err);
     } finally {
       setLoading(false);
     }
