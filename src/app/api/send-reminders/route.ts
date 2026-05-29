@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     let toEmail: string | undefined;
 
     if (isCron) {
-      toEmail = process.env.REMINDER_EMAIL || process.env.GMAIL_USER || "evan@cooper.fitness";
+      toEmail = "evan@cooper.fitness";
     } else {
       const {
         data: { user },
