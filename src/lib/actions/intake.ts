@@ -174,11 +174,7 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
     (f) => f.status === "filled"
   );
 
-  if (filledForms.length === 0) {
-    throw new Error("No forms have been filled out yet");
-  }
-
-  if (isDocuSealConfigured()) {
+  if (isDocuSealConfigured() && filledForms.length > 0) {
     const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_DOMAIN || "https://cooper-fitness.vercel.app"}/api/webhooks/docuseal`;
 
     const submissionIds: number[] = [];

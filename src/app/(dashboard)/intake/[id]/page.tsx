@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowLeft,
   Send,
@@ -11,17 +10,28 @@ import {
   FileText,
   Download,
   ClipboardCheck,
+  ExternalLink,
+  Copy,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   getPacketById,
   sendIntakePacket,
   markPacketComplete,
   getPacketDocuments,
+  saveFormData,
 } from "@/lib/actions/intake";
+import { getFormTemplate } from "@/components/intake/form-templates";
+import { FormRenderer } from "@/components/intake/form-renderer";
 
 const FORM_ICONS: Record<string, string> = {
   parq: "📋",
@@ -63,6 +73,15 @@ export default function IntakeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [editingForm, setEditingForm] = useState<{
+    id: string;
+    form_type: string;
+    form_title: string;
+    form_data: Record<string, unknown>;
+  } | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -82,9 +101,12 @@ export default function IntakeDetailPage() {
 
   const handleSend = async () => {
     setSending(true);
+    setSendError("");
     try {
       await sendIntakePacket(id, window.location.origin);
       fetchData();
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : "Failed to send");
     } finally {
       setSending(false);
     }
@@ -97,6 +119,25 @@ export default function IntakeDetailPage() {
       fetchData();
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    const link = `${window.location.origin}/onboarding/${packet?.access_token}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSaveForm = async (formData: Record<string, string>) => {
+    if (!editingForm) return;
+    setSaving(true);
+    try {
+      await saveFormData(editingForm.id, formData);
+      setEditingForm(null);
+      fetchData();
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -120,6 +161,7 @@ export default function IntakeDetailPage() {
   const forms = packet.intake_forms || [];
   const filledCount = forms.filter((f) => f.status !== "pending").length;
   const signedCount = forms.filter((f) => f.status === "signed").length;
+  const onboardingLink = `${typeof window !== "undefined" ? window.location.origin : ""}/onboarding/${packet.access_token}`;
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -149,13 +191,31 @@ export default function IntakeDetailPage() {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {packet.status === "draft" && (
-          <Button onClick={handleSend} disabled={sending}>
-            <Send className="mr-2 h-4 w-4" />
-            {sending ? "Sending..." : "Send Intake Link"}
+      <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+        <p className="text-sm font-medium">Client Intake Link</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 text-xs bg-background border rounded px-3 py-2 truncate">
+            {onboardingLink}
+          </code>
+          <Button size="sm" variant="outline" onClick={handleCopyLink}>
+            {copied ? <CheckCircle2 className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           </Button>
-        )}
+          <a href={onboardingLink} target="_blank" rel="noopener noreferrer">
+            <Button size="sm" variant="outline">
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          </a>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Send this link to the client so they can fill out their intake forms.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={handleSend} disabled={sending}>
+          <Send className="mr-2 h-4 w-4" />
+          {sending ? "Sending..." : "Send Email Invite"}
+        </Button>
         {packet.status !== "completed" && (
           <Button variant="outline" onClick={handleMarkComplete} disabled={completing}>
             <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -164,17 +224,9 @@ export default function IntakeDetailPage() {
         )}
       </div>
 
-      {packet.signing_url && (
-        <div className="border rounded-lg p-4 bg-muted/30">
-          <p className="text-sm font-medium mb-2">Signing Link</p>
-          <a
-            href={packet.signing_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-primary underline break-all"
-          >
-            {packet.signing_url}
-          </a>
+      {sendError && (
+        <div className="border border-destructive/50 bg-destructive/5 rounded-lg p-3 text-sm text-destructive">
+          {sendError}
         </div>
       )}
 
@@ -184,7 +236,7 @@ export default function IntakeDetailPage() {
           {forms.map((form) => (
             <div
               key={form.id}
-              className="flex items-center justify-between border rounded-lg p-3"
+              className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/30 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <span className="text-lg">{FORM_ICONS[form.form_type] || "📄"}</span>
@@ -196,17 +248,26 @@ export default function IntakeDetailPage() {
                   </p>
                 </div>
               </div>
-              <Badge
-                className={
-                  form.status === "signed"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : form.status === "filled"
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-gray-100 text-gray-600"
-                }
-              >
-                {form.status}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={
+                    form.status === "signed"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : form.status === "filled"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-gray-100 text-gray-600"
+                  }
+                >
+                  {form.status}
+                </Badge>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setEditingForm(form)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>
@@ -240,6 +301,29 @@ export default function IntakeDetailPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={!!editingForm} onOpenChange={() => setEditingForm(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingForm?.form_title}</DialogTitle>
+            <DialogDescription>
+              Fill out this form on behalf of the client
+            </DialogDescription>
+          </DialogHeader>
+          {editingForm && (() => {
+            const template = getFormTemplate(editingForm.form_type);
+            if (!template) return <p>Form template not found</p>;
+            return (
+              <FormRenderer
+                template={template}
+                initialData={editingForm.form_data as Record<string, string>}
+                onSubmit={handleSaveForm}
+                submitting={saving}
+              />
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
