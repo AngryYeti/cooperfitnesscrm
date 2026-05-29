@@ -6,37 +6,44 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const event = body.event as string;
-    const documentId = body.objectId as string;
+    const submissionId = body.submission_id as number | undefined;
+    const submission = body.submission;
 
-    if (!event || !documentId) {
-      return NextResponse.json({ error: "Missing event or objectId" }, { status: 400 });
+    if (!event) {
+      return NextResponse.json({ error: "Missing event" }, { status: 400 });
     }
 
     const supabase = await createClient();
 
+    const subId = submissionId || submission?.id;
+    if (!subId) {
+      return NextResponse.json({ received: true, note: "No submission ID" });
+    }
+
     const { data: packet } = await supabase
       .from("intake_packets")
       .select("id, contact_id, docusign_envelope_id, intake_forms(*)")
-      .like("docusign_envelope_id", `%${documentId}%`)
+      .like("docusign_envelope_id", `%${subId}%`)
       .single();
 
     if (!packet) {
-      return NextResponse.json({ received: true, note: "Packet not found for document" });
+      return NextResponse.json({ received: true, note: "Packet not found" });
     }
 
     await supabase.from("intake_audit").insert({
       packet_id: packet.id,
       contact_id: packet.contact_id,
-      action: `opensign_${event}`,
+      action: `docuseal_${event}`,
       details: JSON.stringify(body),
     });
 
-    if (event === "completed") {
-      const signedFileUrl = body.file as string | undefined;
-      const certificateUrl = body.certificate as string | undefined;
+    if (event === "submission.completed") {
+      const completedSubmission = submission || body;
+      const submitters = completedSubmission.submitters || [];
+      const documents = completedSubmission.documents || [];
 
       const matchingForm = (packet.intake_forms as { id: string; docusign_document_id: string }[]).find(
-        (f) => f.docusign_document_id === documentId
+        (f) => f.docusign_document_id === String(subId)
       );
 
       if (matchingForm) {
@@ -45,18 +52,19 @@ export async function POST(request: Request) {
           .update({ status: "signed", signed_at: new Date().toISOString() })
           .eq("id", matchingForm.id);
 
+        const docUrl = documents[0]?.url || submitters[0]?.documents?.[0]?.url || null;
+
         await supabase.from("intake_documents").insert({
           packet_id: packet.id,
           form_id: matchingForm.id,
           contact_id: packet.contact_id,
-          document_name: body.name || "Signed Document",
-          docusign_envelope_id: documentId,
-          pdf_url: signedFileUrl || null,
+          document_name: completedSubmission.name || "Signed Document",
+          docusign_envelope_id: String(subId),
+          pdf_url: docUrl,
           signed_at: new Date().toISOString(),
         });
       }
 
-      const allDocIds = (packet.docusign_envelope_id || "").split(",").filter(Boolean);
       const { data: allForms } = await supabase
         .from("intake_forms")
         .select("id, status")
@@ -83,20 +91,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (event === "signed") {
-      const matchingForm = (packet.intake_forms as { id: string; docusign_document_id: string }[]).find(
-        (f) => f.docusign_document_id === documentId
-      );
-
-      if (matchingForm) {
-        await supabase
-          .from("intake_forms")
-          .update({ status: "signed", signed_at: new Date().toISOString() })
-          .eq("id", matchingForm.id);
-      }
-    }
-
-    if (event === "declined") {
+    if (event === "submission.declined") {
       await supabase
         .from("intake_packets")
         .update({ status: "expired", updated_at: new Date().toISOString() })
@@ -105,7 +100,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true, event });
   } catch (err) {
-    console.error("OpenSign webhook error:", err);
+    console.error("DocuSeal webhook error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
