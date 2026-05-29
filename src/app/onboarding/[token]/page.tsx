@@ -28,29 +28,27 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [completed, setCompleted] = useState(false);
+  const [allDone, setAllDone] = useState(false);
   const [signing, setSigning] = useState(false);
   const [signingUrl, setSigningUrl] = useState<string | null>(null);
   const [signingError, setSigningError] = useState("");
 
-  const fetchData = useCallback(async () => {
-    try {
-      const data = await getPacketByToken(token);
-      if (!data) {
-        setError("Invalid or expired intake link.");
-        return;
-      }
-      setPacket(data as typeof packet);
-    } catch {
-      setError("Invalid or expired intake link.");
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    (async () => {
+      try {
+        const data = await getPacketByToken(token);
+        if (!data) {
+          setError("Invalid or expired intake link.");
+          return;
+        }
+        setPacket(data as typeof packet);
+      } catch {
+        setError("Invalid or expired intake link.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [token]);
 
   const forms = packet?.intake_forms || [];
   const currentForm = forms[currentIndex];
@@ -58,29 +56,37 @@ export default function OnboardingPage() {
   const filledCount = forms.filter((f) => f.status !== "pending").length;
 
   const handleSubmit = async (formData: Record<string, string>) => {
-    if (!currentForm) return;
+    if (!currentForm || !packet) return;
     setSaving(true);
     try {
       await saveFormData(currentForm.id, formData);
+
+      setPacket((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          intake_forms: prev.intake_forms.map((f) =>
+            f.id === currentForm.id ? { ...f, status: "filled", form_data: formData } : f
+          ),
+        };
+      });
+
       if (currentIndex < forms.length - 1) {
         setCurrentIndex(currentIndex + 1);
       } else {
-        setCompleted(true);
-        if (packet) {
-          setSigning(true);
-          try {
-            const result = await submitForSigning(packet.id);
-            if (result.signingUrl) {
-              setSigningUrl(result.signingUrl);
-            }
-          } catch (err) {
-            setSigningError(err instanceof Error ? err.message : "Failed to start signing");
-          } finally {
-            setSigning(false);
+        setAllDone(true);
+        setSigning(true);
+        try {
+          const result = await submitForSigning(packet.id);
+          if (result.signingUrl) {
+            setSigningUrl(result.signingUrl);
           }
+        } catch (err) {
+          setSigningError(err instanceof Error ? err.message : "Failed to start signing");
+        } finally {
+          setSigning(false);
         }
       }
-      fetchData();
     } finally {
       setSaving(false);
     }
@@ -104,7 +110,7 @@ export default function OnboardingPage() {
     );
   }
 
-  if (completed) {
+  if (allDone) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4 max-w-md mx-auto p-8">
@@ -134,7 +140,12 @@ export default function OnboardingPage() {
           )}
 
           {signingError && !signing && (
-            <p className="text-sm text-destructive">{signingError}</p>
+            <div className="space-y-2">
+              <p className="text-sm text-destructive">{signingError}</p>
+              <p className="text-muted-foreground text-sm">
+                Your forms have been saved. Your coach will follow up with signing instructions.
+              </p>
+            </div>
           )}
 
           {!signing && !signingUrl && !signingError && (
@@ -221,6 +232,7 @@ export default function OnboardingPage() {
               </div>
             ) : (
               <FormRenderer
+                key={currentForm.id}
                 template={template}
                 initialData={currentForm.form_data as Record<string, string>}
                 onSubmit={handleSubmit}
