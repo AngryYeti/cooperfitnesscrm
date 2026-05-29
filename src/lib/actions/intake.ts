@@ -3,12 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
-  createEnvelope,
-  createSigningUrl,
-  getSignedDocument,
-  listEnvelopeDocuments,
-  isDocuSignConfigured,
-} from "@/lib/docusign";
+  createDocument,
+  createSignatureWidget,
+  createDateWidget,
+  isConfigured as isOpenSignConfigured,
+} from "@/lib/opensign";
 import nodemailer from "nodemailer";
 
 const FORM_TEMPLATES = [
@@ -181,35 +180,40 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
     throw new Error("No forms have been filled out yet");
   }
 
-  if (isDocuSignConfigured()) {
-    const documents = filledForms.map((f) => ({
-      name: f.form_title,
-      htmlContent: generateFormHtml(f.form_title, f.form_data as Record<string, string>),
-      formId: f.id,
-    }));
+  if (isOpenSignConfigured()) {
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_DOMAIN || "https://cooper-fitness.vercel.app"}/api/webhooks/opensign`;
 
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_DOMAIN || "https://cooper-fitness.vercel.app"}/api/webhooks/docusign`;
+    const docIds: string[] = [];
+    let lastSigningUrl = "";
 
-    const { envelopeId } = await createEnvelope(
-      `${contact.first_name} ${contact.last_name}`,
-      contact.email,
-      documents,
-      webhookUrl
-    );
+    for (const f of filledForms) {
+      const pdfHtml = generateFormHtml(f.form_title, f.form_data as Record<string, string>);
+      const pdfBase64 = Buffer.from(pdfHtml).toString("base64");
 
-    const signingUrl = await createSigningUrl(
-      envelopeId,
-      `${contact.first_name} ${contact.last_name}`,
-      contact.email,
-      returnUrl
-    );
+      const { documentId, signingUrl } = await createDocument(
+        pdfBase64,
+        f.form_title,
+        `${contact.first_name} ${contact.last_name}`,
+        contact.email,
+        [createSignatureWidget(1, 350, 700), createDateWidget(1, 50, 700)],
+        webhookUrl
+      );
+
+      docIds.push(documentId);
+      if (signingUrl) lastSigningUrl = signingUrl;
+
+      await supabase
+        .from("intake_forms")
+        .update({ docusign_document_id: documentId })
+        .eq("id", f.id);
+    }
 
     await supabase
       .from("intake_packets")
       .update({
         status: "sent",
-        docusign_envelope_id: envelopeId,
-        signing_url: signingUrl,
+        docusign_envelope_id: docIds.join(","),
+        signing_url: lastSigningUrl,
         sent_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -218,11 +222,11 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
     await supabase.from("intake_audit").insert({
       packet_id: packetId,
       contact_id: packet.contact_id,
-      action: "packet_sent_docusign",
-      details: `Sent via DocuSign. Envelope: ${envelopeId}`,
+      action: "packet_sent_opensign",
+      details: `Sent via OpenSign. Documents: ${docIds.join(", ")}`,
     });
 
-    return { method: "docusign", signingUrl, envelopeId };
+    return { method: "opensign", signingUrl: lastSigningUrl, documentIds: docIds };
   }
 
   const intakeLink = `${returnUrl}/onboarding/${packet.access_token}`;
