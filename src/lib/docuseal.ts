@@ -26,28 +26,18 @@ export async function createSubmissionFromHtml(
   fields?: DocuSealField[],
   webhookUrl?: string
 ): Promise<{ submissionId: number; submitterId: number; embedSrc: string }> {
+  const doc: Record<string, unknown> = {
+    name: documentName,
+    html: htmlContent,
+  };
+
+  if (fields && fields.length > 0) {
+    doc.fields = fields;
+  }
+
   const body: Record<string, unknown> = {
     name: documentName,
-    documents: [
-      {
-        name: documentName,
-        html: htmlContent,
-        fields: fields || [
-          {
-            name: "Signature",
-            type: "signature",
-            required: true,
-            areas: [{ x: 50, y: 700, w: 200, h: 50, page: 1 }],
-          },
-          {
-            name: "Date",
-            type: "date",
-            required: true,
-            areas: [{ x: 300, y: 700, w: 150, h: 30, page: 1 }],
-          },
-        ],
-      },
-    ],
+    documents: [doc],
     submitters: [
       {
         role: "Signer",
