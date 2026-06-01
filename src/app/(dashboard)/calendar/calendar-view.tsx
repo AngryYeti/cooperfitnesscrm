@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Calendar as RBCalendar,
   dateFnsLocalizer,
@@ -38,6 +38,8 @@ import {
   Plus,
   X,
   Check,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   getCalendarEvents,
@@ -89,6 +91,7 @@ export function CalendarView() {
   const [date, setDate] = useState(new Date());
   const [view, setView] = useState<View>(Views.WEEK);
   const [events, setEvents] = useState<RBEvent[]>([]);
+  const eventsRef = useRef<RBEvent[]>([]);
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
@@ -97,6 +100,7 @@ export function CalendarView() {
   const [toggling, setToggling] = useState(false);
 
   const [miniCalMonth, setMiniCalMonth] = useState(new Date());
+  const [showCompleted, setShowCompleted] = useState(true);
 
   const { openNewEvent } = useNewEvent();
 
@@ -122,18 +126,18 @@ export function CalendarView() {
       range.start.toISOString(),
       range.end.toISOString()
     );
-    setEvents(
-      data.map((e) => ({
-        id: e.id,
-        title: e.title,
-        start: new Date(e.start_time),
-        end: e.all_day
-          ? addDays(new Date(e.start_time), 1)
-          : new Date(e.end_time),
-        allDay: e.all_day,
-        resource: e,
-      }))
-    );
+    const mapped = data.map((e) => ({
+      id: e.id,
+      title: e.title,
+      start: new Date(e.start_time),
+      end: e.all_day
+        ? addDays(new Date(e.start_time), 1)
+        : new Date(e.end_time),
+      allDay: e.all_day,
+      resource: e,
+    }));
+    setEvents(mapped);
+    eventsRef.current = mapped;
   }, [getDateRange]);
 
   useEffect(() => {
@@ -191,23 +195,55 @@ export function CalendarView() {
     if (!selectedEvent) return;
     setToggling(true);
     const nextValue = !selectedEvent.completed;
-    setSelectedEvent({ ...selectedEvent, completed: nextValue });
-    setEvents((prev) =>
-      prev.map((e) =>
+    const updatedAt = nextValue ? new Date().toISOString() : null;
+
+    setSelectedEvent({
+      ...selectedEvent,
+      completed: nextValue,
+      completed_at: updatedAt,
+    });
+    setEvents((prev) => {
+      const next = prev.map((e) =>
         e.id === selectedEvent.id && e.resource
           ? {
               ...e,
               resource: {
                 ...e.resource,
                 completed: nextValue,
-                completed_at: nextValue ? new Date().toISOString() : null,
+                completed_at: updatedAt,
               },
             }
           : e
-      )
-    );
+      );
+      eventsRef.current = next;
+      return next;
+    });
+
     try {
       await toggleEventCompleted(selectedEvent.id, nextValue);
+    } catch (err) {
+      const revertedAt = nextValue ? null : new Date().toISOString();
+      setSelectedEvent({
+        ...selectedEvent,
+        completed: !nextValue,
+        completed_at: revertedAt,
+      });
+      setEvents((prev) => {
+        const reverted = prev.map((e) =>
+          e.id === selectedEvent.id && e.resource
+            ? {
+                ...e,
+                resource: {
+                  ...e.resource,
+                  completed: !nextValue,
+                  completed_at: revertedAt,
+                },
+              }
+            : e
+        );
+        eventsRef.current = reverted;
+        return reverted;
+      });
     } finally {
       setToggling(false);
     }
@@ -267,8 +303,10 @@ export function CalendarView() {
   }, [view, date]);
 
   const eventPropGetter = useCallback((event: RBEvent) => {
-    const baseColor = event.resource?.color || "#3b82f6";
-    const isCompleted = !!event.resource?.completed;
+    const latest = eventsRef.current.find((e) => e.id === event.id);
+    const source = latest?.resource ?? event.resource;
+    const baseColor = source?.color || "#3b82f6";
+    const isCompleted = !!source?.completed;
     const bg = isCompleted ? lightenHex(baseColor, 0.7) : baseColor;
     const textColor = isCompleted ? getReadableTextColor(baseColor) : "#ffffff";
 
@@ -344,9 +382,27 @@ export function CalendarView() {
         </div>
 
         <div className="mt-4 rounded-xl border border-border/60 bg-card p-3 shadow-soft">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2.5">
-            Upcoming
-          </p>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Upcoming
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowCompleted((v) => !v)}
+              className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              title={showCompleted ? "Hide completed" : "Show completed"}
+            >
+              {showCompleted ? (
+                <>
+                  <Eye className="h-3 w-3" /> Done
+                </>
+              ) : (
+                <>
+                  <EyeOff className="h-3 w-3" /> Done
+                </>
+              )}
+            </button>
+          </div>
           <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
             {events
               .filter((e) => e.start >= new Date())
@@ -452,7 +508,11 @@ export function CalendarView() {
         <div className="flex-1 overflow-hidden">
           <DnDCalendar
             localizer={localizer}
-            events={events}
+            events={
+              showCompleted
+                ? events
+                : events.filter((e) => !e.resource?.completed)
+            }
             startAccessor="start"
             endAccessor="end"
             date={date}
@@ -485,7 +545,7 @@ export function CalendarView() {
       </div>
 
       <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
-        <DialogContent>
+        <DialogContent className="bg-background/95 backdrop-blur-md">
           <DialogHeader>
             <div className="flex items-start gap-3">
               <div
