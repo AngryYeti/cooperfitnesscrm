@@ -143,6 +143,5 @@ export async function toggleEventCompleted(
     });
   }
 
-  revalidatePath("/calendar");
   return data;
 }
