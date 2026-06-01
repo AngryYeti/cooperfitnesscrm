@@ -79,5 +79,7 @@ export interface CalendarEvent {
   contacts?: { first_name: string; last_name: string } | null;
   color: string | null;
   google_event_id: string | null;
+  completed: boolean;
+  completed_at: string | null;
   created_at: string;
 }

@@ -37,8 +37,13 @@ import {
   ChevronRight,
   Plus,
   X,
+  Check,
 } from "lucide-react";
-import { getCalendarEvents, deleteCalendarEvent } from "@/lib/actions/calendar";
+import {
+  getCalendarEvents,
+  deleteCalendarEvent,
+  toggleEventCompleted,
+} from "@/lib/actions/calendar";
 import type { CalendarEvent } from "@/lib/types";
 import {
   Dialog,
@@ -49,6 +54,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EventForm } from "@/components/forms/event-form";
+import { useNewEvent } from "@/components/calendar/new-event-provider";
+import { cn, lightenHex, getReadableTextColor } from "@/lib/utils";
 import "./calendar.css";
 
 const locales = { "en-US": enUS };
@@ -83,17 +90,15 @@ export function CalendarView() {
   const [view, setView] = useState<View>(Views.WEEK);
   const [events, setEvents] = useState<RBEvent[]>([]);
 
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{
-    start: Date;
-    end: Date;
-  } | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
   );
   const [showEventDialog, setShowEventDialog] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   const [miniCalMonth, setMiniCalMonth] = useState(new Date());
+
+  const { openNewEvent } = useNewEvent();
 
   const getDateRange = useCallback(() => {
     if (view === Views.MONTH) {
@@ -145,13 +150,12 @@ export function CalendarView() {
       }
       if (e.key === "n" || e.key === "N") {
         e.preventDefault();
-        setSelectedSlot({ start: new Date(), end: new Date() });
-        setShowCreateDialog(true);
+        openNewEvent(new Date());
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [openNewEvent]);
 
   const handleNavigate = useCallback((newDate: Date) => {
     setDate(newDate);
@@ -160,20 +164,13 @@ export function CalendarView() {
 
   const handleView = (newView: View) => setView(newView);
 
-  const handleSelectSlot = ({ start, end }: SlotInfo) => {
-    setSelectedSlot({ start, end });
-    setShowCreateDialog(true);
+  const handleSelectSlot = (slot: SlotInfo) => {
+    openNewEvent(slot.start);
   };
 
   const handleSelectEvent = (event: RBEvent) => {
     setSelectedEvent(event.resource || null);
     setShowEventDialog(true);
-  };
-
-  const handleCreateSuccess = () => {
-    setShowCreateDialog(false);
-    setSelectedSlot(null);
-    fetchEvents();
   };
 
   const handleUpdateSuccess = () => {
@@ -188,6 +185,32 @@ export function CalendarView() {
     setShowEventDialog(false);
     setSelectedEvent(null);
     fetchEvents();
+  };
+
+  const handleToggleCompleted = async () => {
+    if (!selectedEvent) return;
+    setToggling(true);
+    const nextValue = !selectedEvent.completed;
+    setSelectedEvent({ ...selectedEvent, completed: nextValue });
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === selectedEvent.id && e.resource
+          ? {
+              ...e,
+              resource: {
+                ...e.resource,
+                completed: nextValue,
+                completed_at: nextValue ? new Date().toISOString() : null,
+              },
+            }
+          : e
+      )
+    );
+    try {
+      await toggleEventCompleted(selectedEvent.id, nextValue);
+    } finally {
+      setToggling(false);
+    }
   };
 
   const goToToday = () => {
@@ -244,15 +267,25 @@ export function CalendarView() {
   }, [view, date]);
 
   const eventPropGetter = useCallback((event: RBEvent) => {
-    const color = event.resource?.color || "#3b82f6";
+    const baseColor = event.resource?.color || "#3b82f6";
+    const isCompleted = !!event.resource?.completed;
+    const bg = isCompleted ? lightenHex(baseColor, 0.7) : baseColor;
+    const textColor = isCompleted ? getReadableTextColor(baseColor) : "#ffffff";
+
     return {
       style: {
-        backgroundColor: color,
-        borderColor: color,
-        color: "#ffffff",
+        backgroundColor: bg,
+        borderColor: bg,
+        color: textColor,
         borderRadius: "6px",
         border: "none",
-        boxShadow: `0 1px 2px ${color}30`,
+        boxShadow: isCompleted
+          ? `inset 0 0 0 1px ${lightenHex(baseColor, 0.5)}40, 0 1px 2px ${baseColor}20`
+          : `0 1px 2px ${baseColor}30`,
+        opacity: isCompleted ? 0.85 : 1,
+        textDecoration: isCompleted ? "line-through" : "none",
+        textDecorationThickness: "1.5px",
+        transition: "all 0.2s ease",
       },
     };
   }, []);
@@ -273,10 +306,7 @@ export function CalendarView() {
       <aside className="hidden xl:flex flex-col w-64 shrink-0">
         <div className="space-y-1.5 mb-4">
           <Button
-            onClick={() => {
-              setSelectedSlot({ start: new Date(), end: new Date() });
-              setShowCreateDialog(true);
-            }}
+            onClick={() => openNewEvent(new Date())}
             className="w-full justify-start gap-2 shadow-soft"
             size="lg"
           >
@@ -322,28 +352,47 @@ export function CalendarView() {
               .filter((e) => e.start >= new Date())
               .sort((a, b) => a.start.getTime() - b.start.getTime())
               .slice(0, 6)
-              .map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => handleSelectEvent(e)}
-                  className="w-full text-left rounded-md p-2 hover:bg-muted/60 transition-colors group"
-                >
-                  <div className="flex items-start gap-2">
-                    <div
-                      className="h-2 w-2 rounded-full mt-1.5 shrink-0"
-                      style={{ backgroundColor: e.resource?.color || "#3b82f6" }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium truncate group-hover:text-foreground">
-                        {e.title}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(e.start, "MMM d, h:mm a")}
-                      </p>
+              .map((e) => {
+                const baseColor = e.resource?.color || "#3b82f6";
+                const isCompleted = !!e.resource?.completed;
+                const dotColor = isCompleted
+                  ? lightenHex(baseColor, 0.75)
+                  : baseColor;
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => handleSelectEvent(e)}
+                    className="w-full text-left rounded-md p-2 hover:bg-muted/60 transition-colors group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <div
+                        className={cn(
+                          "h-2 w-2 rounded-full mt-1.5 shrink-0",
+                          isCompleted && "ring-1 ring-current/30"
+                        )}
+                        style={{ backgroundColor: dotColor }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "text-xs font-medium truncate group-hover:text-foreground",
+                            isCompleted &&
+                              "line-through text-muted-foreground"
+                          )}
+                        >
+                          {e.title}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(e.start, "MMM d, h:mm a")}
+                        </p>
+                      </div>
+                      {isCompleted && (
+                        <Check className="h-3 w-3 text-muted-foreground mt-1" />
+                      )}
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             {events.filter((e) => e.start >= new Date()).length === 0 && (
               <p className="text-xs text-muted-foreground py-3 text-center">
                 No upcoming events
@@ -423,8 +472,11 @@ export function CalendarView() {
             scrollToTime={new Date(1970, 0, 1, 7, 0, 0)}
             components={{
               event: ({ event }: { event: RBEvent }) => (
-                <div className="px-1.5 py-0.5 text-[11px] leading-tight font-medium">
-                  {event.title}
+                <div className="px-1.5 py-0.5 text-[11px] leading-tight font-medium flex items-center gap-1">
+                  {event.resource?.completed && (
+                    <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={3} />
+                  )}
+                  <span className="truncate">{event.title}</span>
                 </div>
               ),
             }}
@@ -432,36 +484,30 @@ export function CalendarView() {
         </div>
       </div>
 
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              New event
-            </DialogTitle>
-            <DialogDescription>
-              {selectedSlot?.start
-                ? format(selectedSlot.start, "EEEE, MMMM d, yyyy")
-                : "Create a new calendar event"}
-            </DialogDescription>
-          </DialogHeader>
-          <EventForm
-            defaultDate={selectedSlot?.start}
-            onSuccess={handleCreateSuccess}
-          />
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
         <DialogContent>
           <DialogHeader>
             <div className="flex items-start gap-3">
               <div
-                className="h-2.5 w-2.5 rounded-full mt-2 shrink-0"
-                style={{ backgroundColor: selectedEvent?.color || "#3b82f6" }}
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full mt-2 shrink-0",
+                  selectedEvent?.completed && "ring-1 ring-current/30"
+                )}
+                style={{
+                  backgroundColor: selectedEvent
+                    ? selectedEvent.completed
+                      ? lightenHex(selectedEvent.color || "#3b82f6", 0.7)
+                      : selectedEvent.color || "#3b82f6"
+                    : "#3b82f6",
+                }}
               />
-              <div className="min-w-0">
-                <DialogTitle className="break-words">
+              <div className="min-w-0 flex-1">
+                <DialogTitle
+                  className={cn(
+                    "break-words",
+                    selectedEvent?.completed && "line-through"
+                  )}
+                >
                   {selectedEvent?.title || "Event"}
                 </DialogTitle>
                 {selectedEvent && (
@@ -477,6 +523,49 @@ export function CalendarView() {
           </DialogHeader>
           {selectedEvent && (
             <div className="space-y-4">
+              <button
+                type="button"
+                onClick={handleToggleCompleted}
+                disabled={toggling}
+                className={cn(
+                  "w-full flex items-center gap-3 rounded-lg border p-3 transition-all text-left",
+                  selectedEvent.completed
+                    ? "border-success/30 bg-success/5"
+                    : "border-border/60 hover:border-foreground/30 hover:bg-muted/30"
+                )}
+              >
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded border-2 flex items-center justify-center transition-colors shrink-0",
+                    selectedEvent.completed
+                      ? "bg-success border-success"
+                      : "border-input"
+                  )}
+                >
+                  {selectedEvent.completed && (
+                    <Check
+                      className="h-3.5 w-3.5 text-success-foreground"
+                      strokeWidth={3}
+                    />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">
+                    {selectedEvent.completed ? "Completed" : "Mark as complete"}
+                  </p>
+                  {selectedEvent.completed && selectedEvent.completed_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Completed {format(new Date(selectedEvent.completed_at), "MMM d, h:mm a")}
+                    </p>
+                  )}
+                  {!selectedEvent.completed && (
+                    <p className="text-xs text-muted-foreground">
+                      Tick off when this event is done
+                    </p>
+                  )}
+                </div>
+              </button>
+
               {selectedEvent.description && (
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {selectedEvent.description}

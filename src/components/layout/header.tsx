@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
+import { useNewEvent } from "@/components/calendar/new-event-provider";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -49,6 +50,7 @@ export function Header() {
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { openNewEvent } = useNewEvent();
 
   useEffect(() => {
     setMounted(true);
@@ -99,12 +101,15 @@ export function Header() {
         />
       </div>
 
-      <Link href="/calendar" className="hidden md:block">
-        <Button size="sm" variant="default" className="h-8 shadow-soft">
-          <Plus className="h-3.5 w-3.5" />
-          New Event
-        </Button>
-      </Link>
+      <Button
+        size="sm"
+        variant="default"
+        className="h-8 shadow-soft"
+        onClick={() => openNewEvent()}
+      >
+        <Plus className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">New Event</span>
+      </Button>
 
       <Button
         variant="ghost"

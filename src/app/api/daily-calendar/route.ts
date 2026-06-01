@@ -61,8 +61,10 @@ export async function POST(request: Request) {
     if (!events || events.length === 0) {
       html += `<p style="color:#666;">No events scheduled for today.</p>`;
     } else {
-      html += `<ul style="padding-left:0;list-style:none;">`;
-      for (const event of events) {
+      const activeEvents = events.filter((e: any) => !e.completed);
+      const completedEvents = events.filter((e: any) => e.completed);
+
+      const renderEvent = (event: any) => {
         const contactName = event.contacts
           ? `${event.contacts.first_name} ${event.contacts.last_name}`
           : "";
@@ -75,15 +77,37 @@ export async function POST(request: Request) {
         }
 
         const dotColor = event.color || "#2563eb";
-        html += `<li style="margin-bottom:10px;border-left:3px solid ${dotColor};padding-left:10px;">`;
-        html += `<strong>${event.title}</strong>`;
+        const isDone = event.completed;
+        const titleStyle = isDone
+          ? "text-decoration:line-through;color:#999;"
+          : "";
+
+        html += `<li style="margin-bottom:10px;border-left:3px solid ${dotColor};padding-left:10px;${isDone ? "opacity:0.6;" : ""}">`;
+        html += `<strong style="${titleStyle}">${isDone ? "✓ " : ""}${event.title}</strong>`;
         html += `<br><span style="color:#2563eb;">${timeStr}</span>`;
         if (contactName) html += ` &mdash; ${contactName}`;
         if (event.description) html += `<br><span style="color:#666;font-size:13px;">${event.description}</span>`;
         html += `</li>`;
+      };
+
+      if (activeEvents.length > 0) {
+        html += `<ul style="padding-left:0;list-style:none;">`;
+        for (const event of activeEvents) renderEvent(event);
+        html += `</ul>`;
       }
-      html += `</ul>`;
-      html += `<p style="margin-top:15px;color:#666;font-size:14px;">${events.length} event${events.length > 1 ? "s" : ""} today</p>`;
+
+      if (completedEvents.length > 0) {
+        html += `<p style="margin-top:20px;margin-bottom:8px;color:#999;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Completed</p>`;
+        html += `<ul style="padding-left:0;list-style:none;">`;
+        for (const event of completedEvents) renderEvent(event);
+        html += `</ul>`;
+      }
+
+      if (activeEvents.length === 0 && completedEvents.length === 0) {
+        html += `<p style="color:#666;">No events scheduled for today.</p>`;
+      }
+
+      html += `<p style="margin-top:15px;color:#666;font-size:14px;">${activeEvents.length} active · ${completedEvents.length} completed</p>`;
     }
 
     html += `<p style="margin-top:25px;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:15px;">Sent daily from Cooper Fitness CRM</p>`;

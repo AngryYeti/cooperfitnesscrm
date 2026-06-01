@@ -112,3 +112,37 @@ export async function deleteCalendarEvent(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/calendar");
 }
+
+export async function toggleEventCompleted(
+  id: string,
+  completed: boolean
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("calendar_events")
+    .update({
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+    })
+    .eq("id", id)
+    .select("id, title, contact_id, contacts(first_name, last_name)")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  if (data?.contact_id && data?.contacts) {
+    const contact = data.contacts as unknown as {
+      first_name: string;
+      last_name: string;
+    };
+    await supabase.from("activities").insert({
+      type: completed ? "calendar_event_completed" : "calendar_event_uncompleted",
+      contact_id: data.contact_id,
+      contact_name: `${contact.first_name} ${contact.last_name}`,
+      description: `${completed ? "Completed" : "Reopened"} calendar event: ${data.title}`,
+    });
+  }
+
+  revalidatePath("/calendar");
+  return data;
+}
