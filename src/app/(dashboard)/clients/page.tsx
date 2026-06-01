@@ -11,6 +11,9 @@ import {
   Download,
   ArrowRightLeft,
   MoreHorizontal,
+  Mail,
+  Phone,
+  Users as UsersIcon,
 } from "lucide-react";
 import { Contact, ContactStatus } from "@/lib/types";
 import {
@@ -22,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +46,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { ContactForm } from "@/components/forms/contact-form";
 
 const statusOptions: ContactStatus[] = [
@@ -52,7 +55,7 @@ const statusOptions: ContactStatus[] = [
   "Completed",
 ];
 
-const statusBadgeMap: Record<ContactStatus, string> = {
+const statusBadgeMap: Record<ContactStatus, "lead" | "trial" | "active" | "completed"> = {
   Lead: "lead",
   Trial: "trial",
   "Active Client": "active",
@@ -156,18 +159,20 @@ function ClientsPageInner() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6 animate-fade-up">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clients & Leads</h1>
-          <p className="text-muted-foreground">Manage your contacts and clients</p>
+          <h1 className="text-3xl font-bold tracking-tight">Clients & Leads</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your contacts and clients
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCSV}>
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="shadow-soft">
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
-          <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+          <Button size="sm" onClick={() => setIsCreateOpen(true)} className="shadow-soft">
             <Plus className="mr-2 h-4 w-4" />
             Add Contact
           </Button>
@@ -179,7 +184,7 @@ function ClientsPageInner() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by name, email, or phone..."
-            className="pl-9"
+            className="pl-9 h-10 bg-muted/30 border-transparent focus-visible:bg-background"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -188,7 +193,7 @@ function ClientsPageInner() {
           value={statusFilter}
           onValueChange={(v) => setStatusFilter(v as ContactStatus | "all")}
         >
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px] h-10">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -203,44 +208,96 @@ function ClientsPageInner() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading contacts...</div>
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-soft">
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-9 w-9 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-1/4" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : contacts.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          {searchQuery ? "No contacts found matching your search" : "No contacts yet. Add your first contact!"}
+        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-16 text-center">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
+            <UsersIcon className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-foreground">
+            {searchQuery ? "No contacts found" : "No contacts yet"}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {searchQuery
+              ? "Try adjusting your search terms"
+              : "Add your first contact to get started"}
+          </p>
+          {!searchQuery && (
+            <Button onClick={() => setIsCreateOpen(true)} className="mt-4 shadow-soft">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Contact
+            </Button>
+          )}
         </div>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-soft">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50">
+              <thead className="bg-muted/30 border-b border-border/60">
                 <tr>
-                  <th className="text-left font-medium px-4 py-3">Name</th>
-                  <th className="text-left font-medium px-4 py-3 hidden sm:table-cell">Contact</th>
-                  <th className="text-left font-medium px-4 py-3 hidden md:table-cell">Goal</th>
-                  <th className="text-left font-medium px-4 py-3">Status</th>
-                  <th className="text-left font-medium px-4 py-3 hidden md:table-cell">Source</th>
-                  <th className="text-right font-medium px-4 py-3">Actions</th>
+                  <th className="text-left font-medium px-4 py-3 text-muted-foreground text-xs uppercase tracking-wider">Name</th>
+                  <th className="text-left font-medium px-4 py-3 hidden sm:table-cell text-muted-foreground text-xs uppercase tracking-wider">Contact</th>
+                  <th className="text-left font-medium px-4 py-3 hidden md:table-cell text-muted-foreground text-xs uppercase tracking-wider">Goal</th>
+                  <th className="text-left font-medium px-4 py-3 text-muted-foreground text-xs uppercase tracking-wider">Status</th>
+                  <th className="text-left font-medium px-4 py-3 hidden md:table-cell text-muted-foreground text-xs uppercase tracking-wider">Source</th>
+                  <th className="text-right font-medium px-4 py-3 text-muted-foreground text-xs uppercase tracking-wider w-12"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-border/40">
                 {contacts.map((contact) => (
-                  <tr key={contact.id} className="hover:bg-accent/50">
+                  <tr
+                    key={contact.id}
+                    className="hover:bg-muted/30 transition-colors group"
+                  >
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/clients/${contact.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {contact.first_name} {contact.last_name}
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-gradient-soft flex items-center justify-center text-xs font-medium shrink-0">
+                          {contact.first_name[0]}
+                          {contact.last_name?.[0] || ""}
+                        </div>
+                        <Link
+                          href={`/clients/${contact.id}`}
+                          className="font-medium hover:underline decoration-foreground/30 underline-offset-2"
+                        >
+                          {contact.first_name} {contact.last_name}
+                        </Link>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">
-                      {contact.phone || contact.email || "—"}
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <div className="text-muted-foreground text-xs space-y-0.5">
+                        {contact.email && (
+                          <div className="flex items-center gap-1.5">
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate max-w-[180px]">{contact.email}</span>
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div className="flex items-center gap-1.5">
+                            <Phone className="h-3 w-3" />
+                            {contact.phone}
+                          </div>
+                        )}
+                        {!contact.email && !contact.phone && "—"}
+                      </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell text-muted-foreground max-w-[200px] truncate">
                       {contact.fitness_goal || "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={statusBadgeMap[contact.status] as any}>
+                      <Badge variant={statusBadgeMap[contact.status]}>
                         {contact.status}
                       </Badge>
                     </td>
@@ -250,11 +307,15 @@ function ClientsPageInner() {
                     <td className="px-4 py-3 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="w-44">
                           <DropdownMenuItem
                             onClick={() => setEditingContact(contact)}
                           >
@@ -272,7 +333,7 @@ function ClientsPageInner() {
                             }
                           >
                             <ArrowRightLeft className="mr-2 h-4 w-4" />
-                            Toggle Lead/Active
+                            Toggle status
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
@@ -336,7 +397,7 @@ function ClientsPageInner() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete{" "}
-            <strong>
+            <strong className="text-foreground">
               {deletingContact?.first_name} {deletingContact?.last_name}
             </strong>
             ? This action cannot be undone.

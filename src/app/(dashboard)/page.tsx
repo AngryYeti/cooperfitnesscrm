@@ -1,18 +1,48 @@
 import Link from "next/link";
-import { Users, UserCheck, Clock, UserX, ArrowRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  Users,
+  UserCheck,
+  Clock,
+  UserX,
+  ArrowRight,
+  TrendingUp,
+  Activity,
+  Calendar as CalendarIcon,
+  Target,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { getDashboardStats, getContacts } from "@/lib/actions/contacts";
 import { getRecentActivities } from "@/lib/actions/activities";
 import { getOverdueFollowUps } from "@/lib/actions/follow-ups";
-import { formatDistanceToNow } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const iconMap = {
+  Users,
+  UserCheck,
+  Clock,
+  UserX,
+};
+
+const statusBadgeMap: Record<string, "lead" | "trial" | "active" | "completed"> = {
+  Lead: "lead",
+  Trial: "trial",
+  "Active Client": "active",
+  Completed: "completed",
+};
 
 export default async function DashboardPage() {
-  const stats = await getDashboardStats();
-  const activities = await getRecentActivities(10);
-  const overdueFollowUps = await getOverdueFollowUps();
-  const recentContacts = await getContacts();
-  const top5Contacts = recentContacts.slice(0, 5);
+  const [stats, activities, overdueFollowUps, recentContacts] =
+    await Promise.all([
+      getDashboardStats(),
+      getRecentActivities(8),
+      getOverdueFollowUps(),
+      getContacts(),
+    ]);
+
+  const topContacts = recentContacts.slice(0, 5);
 
   const statCards = [
     {
@@ -21,6 +51,8 @@ export default async function DashboardPage() {
       icon: Users,
       href: "/clients?status=Lead",
       color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-500/10",
+      trend: "Active prospects",
     },
     {
       title: "Active Clients",
@@ -28,6 +60,8 @@ export default async function DashboardPage() {
       icon: UserCheck,
       href: "/clients?status=Active+Client",
       color: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-emerald-500/10",
+      trend: "Currently coaching",
     },
     {
       title: "Pending Follow-Ups",
@@ -35,66 +69,114 @@ export default async function DashboardPage() {
       icon: Clock,
       href: "/follow-ups",
       color: "text-sky-600 dark:text-sky-400",
+      bg: "bg-sky-500/10",
+      trend: "Awaiting action",
     },
     {
-      title: "Completed Clients",
+      title: "Completed",
       value: stats.completedClients,
       icon: UserX,
       href: "/clients?status=Completed",
       color: "text-slate-600 dark:text-slate-400",
+      bg: "bg-slate-500/10",
+      trend: "Past clients",
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your coaching business
-        </p>
+    <div className="space-y-8 animate-fade-up">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Welcome back, <span className="text-gradient">Coach</span>
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Here's what's happening with your clients today.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild className="shadow-soft">
+            <Link href="/calendar">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              View Calendar
+            </Link>
+          </Button>
+          <Button asChild className="shadow-soft">
+            <Link href="/clients">
+              <Target className="mr-2 h-4 w-4" />
+              Manage Clients
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Link key={stat.title} href={stat.href}>
-            <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+        {statCards.map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <Link
+              key={stat.title}
+              href={stat.href}
+              className="group"
+              style={{ animationDelay: `${i * 50}ms` }}
+            >
+              <Card className="shadow-soft hover:shadow-elevated transition-all duration-200 group-hover:-translate-y-0.5 cursor-pointer h-full">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`h-10 w-10 rounded-lg ${stat.bg} flex items-center justify-center`}>
+                      <Icon className={`h-5 w-5 ${stat.color}`} strokeWidth={2} />
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      {stat.title}
+                    </p>
+                    <p className="text-3xl font-bold tracking-tight mt-1">
+                      {stat.value}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {stat.trend}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
 
       {overdueFollowUps.length > 0 && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+        <div className="rounded-xl border border-destructive/30 bg-gradient-to-br from-destructive/5 to-destructive/[0.02] p-5 shadow-soft">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-destructive">
-              Overdue Follow-Ups ({overdueFollowUps.length})
-            </h3>
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-destructive" />
+              </div>
+              <h3 className="font-semibold text-destructive">
+                Overdue Follow-Ups ({overdueFollowUps.length})
+              </h3>
+            </div>
             <Link href="/follow-ups">
               <Button variant="ghost" size="sm">
                 View all <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
             </Link>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {overdueFollowUps.slice(0, 3).map((fu: any) => (
               <div
                 key={fu.id}
-                className="flex items-center justify-between text-sm"
+                className="flex items-center justify-between text-sm rounded-lg px-3 py-2.5 hover:bg-background/60 transition-colors"
               >
-                <span>
-                  {fu.contacts?.first_name} {fu.contacts?.last_name} — {fu.title}
+                <span className="font-medium">
+                  {fu.contacts?.first_name} {fu.contacts?.last_name}{" "}
+                  <span className="text-muted-foreground font-normal">
+                    — {fu.title}
+                  </span>
                 </span>
-                <span className="text-destructive font-medium">
-                  Due {formatDistanceToNow(new Date(fu.due_date), { addSuffix: true })}
+                <span className="text-destructive text-xs font-medium">
+                  {formatDistanceToNow(new Date(fu.due_date), { addSuffix: true })}
                 </span>
               </div>
             ))}
@@ -103,19 +185,32 @@ export default async function DashboardPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Activity className="h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Recent Activity</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-1">
             {activities.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent activity</p>
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No recent activity
+              </p>
             ) : (
-              activities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className="mt-0.5 h-2 w-2 rounded-full bg-primary shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-sm">{activity.description}</p>
+              activities.map((activity, i) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-3 py-2.5 px-2 rounded-md hover:bg-muted/40 transition-colors"
+                  style={{ animationDelay: `${i * 30}ms` }}
+                >
+                  <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-foreground/40 shrink-0" />
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <p className="text-sm leading-relaxed">
+                      {activity.description}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(activity.created_at), {
                         addSuffix: true,
@@ -128,34 +223,47 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent Contacts</CardTitle>
+        <Card className="shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Recent Contacts</CardTitle>
+            </div>
             <Link href="/clients">
               <Button variant="ghost" size="sm">
                 View all <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
             </Link>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {top5Contacts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No contacts yet</p>
+          <CardContent className="space-y-1">
+            {topContacts.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No contacts yet
+              </p>
             ) : (
-              top5Contacts.map((contact) => (
+              topContacts.map((contact) => (
                 <Link
                   key={contact.id}
                   href={`/clients/${contact.id}`}
-                  className="flex items-center justify-between rounded-md p-2 hover:bg-accent transition-colors"
+                  className="flex items-center justify-between rounded-md px-2 py-2.5 hover:bg-muted/40 transition-colors group"
                 >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {contact.first_name} {contact.last_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {contact.status}
-                    </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-gradient-soft flex items-center justify-center text-xs font-medium shrink-0">
+                      {contact.first_name[0]}
+                      {contact.last_name?.[0] || ""}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {contact.first_name} {contact.last_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {contact.status}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground shrink-0 ml-2">
                     {formatDistanceToNow(new Date(contact.date_added), {
                       addSuffix: true,
                     })}

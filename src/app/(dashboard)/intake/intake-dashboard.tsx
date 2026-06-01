@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  Plus,
   Send,
   Trash2,
   ChevronRight,
@@ -12,10 +11,12 @@ import {
   AlertCircle,
   FileText,
   UserPlus,
+  Inbox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -38,12 +39,12 @@ import {
 } from "@/lib/actions/intake";
 import type { Contact } from "@/lib/types";
 
-const STATUS_BADGES: Record<string, { label: string; variant: string; icon: React.ElementType }> = {
-  draft: { label: "Draft", variant: "bg-gray-100 text-gray-700", icon: FileText },
-  sent: { label: "Sent", variant: "bg-blue-100 text-blue-700", icon: Send },
-  in_progress: { label: "In Progress", variant: "bg-amber-100 text-amber-700", icon: Clock },
-  completed: { label: "Completed", variant: "bg-emerald-100 text-emerald-700", icon: CheckCircle2 },
-  expired: { label: "Expired", variant: "bg-red-100 text-red-700", icon: AlertCircle },
+const STATUS_BADGES: Record<string, { label: string; variant: "default" | "secondary" | "warning" | "success" | "destructive" | "outline"; icon: React.ElementType }> = {
+  draft: { label: "Draft", variant: "outline", icon: FileText },
+  sent: { label: "Sent", variant: "secondary", icon: Send },
+  in_progress: { label: "In Progress", variant: "warning", icon: Clock },
+  completed: { label: "Completed", variant: "success", icon: CheckCircle2 },
+  expired: { label: "Expired", variant: "destructive", icon: AlertCircle },
 };
 
 const INTAKE_STATUS_LABELS: Record<string, string> = {
@@ -137,101 +138,131 @@ export function IntakeDashboard() {
 
   const getFormProgress = (forms: { status: string }[]) => {
     const filled = forms.filter((f) => f.status !== "pending").length;
-    return `${filled}/${forms.length}`;
+    return { filled, total: forms.length };
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-up">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Client Intake</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight">Client Intake</h1>
+          <p className="text-muted-foreground mt-1">
             Manage client onboarding forms and e-signatures
           </p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
+        <Button onClick={() => setShowCreate(true)} className="shadow-soft">
           <UserPlus className="mr-2 h-4 w-4" />
           New Intake Packet
         </Button>
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground text-center py-12">Loading...</p>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
       ) : packets.length === 0 ? (
-        <div className="text-center py-12">
-          <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">No intake packets yet.</p>
+        <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-16 text-center">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3">
+            <Inbox className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-foreground">No intake packets yet</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Create one to start onboarding a client.
+            Create one to start onboarding a client
           </p>
+          <Button
+            onClick={() => setShowCreate(true)}
+            className="mt-4 shadow-soft"
+            size="sm"
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Create first packet
+          </Button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-2">
           {packets.map((packet) => {
             const statusInfo = STATUS_BADGES[packet.status] || STATUS_BADGES.draft;
             const StatusIcon = statusInfo.icon;
-            const intakeStatus = INTAKE_STATUS_LABELS[packet.contacts?.intake_status] || packet.contacts?.intake_status;
+            const intakeStatus =
+              INTAKE_STATUS_LABELS[packet.contacts?.intake_status] ||
+              packet.contacts?.intake_status;
+            const progress = getFormProgress(packet.intake_forms);
+            const pct = progress.total > 0 ? (progress.filled / progress.total) * 100 : 0;
             return (
-              <div
+              <Card
                 key={packet.id}
-                className="border rounded-lg p-4 hover:bg-muted/30 transition-colors"
+                className="border-border/60 shadow-soft hover:shadow-elevated transition-shadow group"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Link
-                        href={`/intake/${packet.id}`}
-                        className="font-semibold hover:underline truncate"
-                      >
-                        {packet.contacts?.first_name} {packet.contacts?.last_name}
-                      </Link>
-                      <Badge className={`${statusInfo.variant} text-[10px]`}>
-                        <StatusIcon className="h-3 w-3 mr-1" />
-                        {statusInfo.label}
-                      </Badge>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <Link
+                          href={`/intake/${packet.id}`}
+                          className="font-semibold hover:underline decoration-foreground/30 underline-offset-2 truncate"
+                        >
+                          {packet.contacts?.first_name} {packet.contacts?.last_name}
+                        </Link>
+                        <Badge variant={statusInfo.variant} className="text-[10px]">
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {statusInfo.label}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex-1 max-w-[200px]">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-muted-foreground">
+                              Forms {progress.filled}/{progress.total}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-foreground rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-3">
+                          <span>Created {new Date(packet.created_at).toLocaleDateString()}</span>
+                          {intakeStatus && (
+                            <span className="hidden sm:inline">· {intakeStatus}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Forms: {getFormProgress(packet.intake_forms)}</span>
-                      <span>Status: {intakeStatus}</span>
-                      <span>
-                        Created:{" "}
-                        {new Date(packet.created_at).toLocaleDateString()}
-                      </span>
-                      {packet.completed_at && (
-                        <span>
-                          Completed:{" "}
-                          {new Date(packet.completed_at).toLocaleDateString()}
-                        </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {packet.status === "draft" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSend(packet.id)}
+                          disabled={sending === packet.id}
+                          className="shadow-soft"
+                        >
+                          <Send className="mr-1.5 h-3 w-3" />
+                          {sending === packet.id ? "Sending..." : "Send"}
+                        </Button>
                       )}
+                      <Link href={`/intake/${packet.id}`}>
+                        <Button size="sm" variant="ghost">
+                          Open
+                          <ChevronRight className="ml-0.5 h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive h-8 w-8"
+                        onClick={() => handleDelete(packet.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {packet.status === "draft" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleSend(packet.id)}
-                        disabled={sending === packet.id}
-                      >
-                        <Send className="mr-1 h-3 w-3" />
-                        {sending === packet.id ? "Sending..." : "Send"}
-                      </Button>
-                    )}
-                    <Link href={`/intake/${packet.id}`}>
-                      <Button size="sm" variant="ghost">
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDelete(packet.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -263,7 +294,7 @@ export function IntakeDashboard() {
             <Button
               onClick={handleCreate}
               disabled={!selectedContact || creating}
-              className="w-full"
+              className="w-full shadow-soft"
             >
               {creating ? "Creating..." : "Create Packet"}
             </Button>

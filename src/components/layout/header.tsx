@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -16,14 +16,19 @@ import {
   Moon,
   Sun,
   LogOut,
+  Search,
+  Plus,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -43,6 +48,11 @@ export function Header() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -50,8 +60,12 @@ export function Header() {
     window.location.href = "/login";
   };
 
+  const currentPage = navItems.find(
+    (item) => item.href === pathname || pathname.startsWith(`${item.href}/`)
+  );
+
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border/60 glass">
       <Button
         variant="ghost"
         size="icon"
@@ -62,36 +76,80 @@ export function Header() {
       </Button>
 
       <Link href="/" className="lg:hidden flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Dumbbell className="h-4 w-4" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-brand text-primary-foreground">
+          <Dumbbell className="h-3.5 w-3.5" strokeWidth={2.5} />
         </div>
-        <span className="font-semibold">Cooper Fitness</span>
+        <span className="font-semibold text-sm">Cooper Fitness</span>
       </Link>
 
+      {currentPage && (
+        <div className="hidden lg:flex items-center gap-2 ml-1">
+          <currentPage.icon className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
+          <h1 className="text-sm font-semibold tracking-tight">{currentPage.name}</h1>
+        </div>
+      )}
+
       <div className="flex-1" />
+
+      <div className="hidden md:flex relative w-72 max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search clients, events..."
+          className="h-8 pl-8 text-sm bg-muted/40 border-transparent focus-visible:bg-background"
+        />
+      </div>
+
+      <Link href="/calendar" className="hidden md:block">
+        <Button size="sm" variant="default" className="h-8 shadow-soft">
+          <Plus className="h-3.5 w-3.5" />
+          New Event
+        </Button>
+      </Link>
 
       <Button
         variant="ghost"
         size="icon"
+        className="h-8 w-8"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        aria-label="Toggle theme"
       >
-        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        <span className="sr-only">Toggle theme</span>
+        {mounted && theme === "dark" ? (
+          <Moon className="h-4 w-4" />
+        ) : (
+          <Sun className="h-4 w-4" />
+        )}
       </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full ring-offset-2 focus-visible:ring-2"
+          >
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              <AvatarFallback className="bg-gradient-brand text-primary-foreground text-xs font-medium">
                 CF
               </AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleSignOut}>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-0.5">
+              <p className="text-sm font-medium">Cooper Fitness</p>
+              <p className="text-xs text-muted-foreground">evan@cooper.fitness</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/settings">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
             <LogOut className="mr-2 h-4 w-4" />
             Sign out
           </DropdownMenuItem>
@@ -99,26 +157,25 @@ export function Header() {
       </DropdownMenu>
 
       {mobileOpen && (
-        <div className="absolute top-14 left-0 right-0 border-b bg-background lg:hidden">
-          <nav className="flex flex-col p-4 space-y-1">
+        <div className="absolute top-14 left-0 right-0 border-b border-border/60 glass lg:hidden">
+          <nav className="flex flex-col p-3 space-y-0.5">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link key={item.href} href={item.href}>
-                  <Button
-                    variant="ghost"
+                  <div
                     className={cn(
-                      "w-full justify-start gap-3 text-sm font-medium",
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                       isActive
                         ? "bg-accent text-accent-foreground"
-                        : "hover:bg-accent hover:text-accent-foreground"
+                        : "hover:bg-accent/60"
                     )}
                     onClick={() => setMobileOpen(false)}
                   >
                     <item.icon className="h-4 w-4" />
                     {item.name}
-                  </Button>
+                  </div>
                 </Link>
               );
             })}

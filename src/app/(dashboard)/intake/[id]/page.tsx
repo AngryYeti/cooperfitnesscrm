@@ -13,9 +13,13 @@ import {
   ExternalLink,
   Copy,
   Pencil,
+  User,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -154,7 +158,16 @@ export default function IntakeDetailPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return <p className="text-muted-foreground text-center py-12">Loading...</p>;
+  if (loading) {
+    return (
+      <div className="space-y-4 max-w-3xl animate-fade-up">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-48 rounded-xl" />
+      </div>
+    );
+  }
+
   if (!packet) return <p className="text-center py-12">Packet not found</p>;
 
   const contact = packet.contacts;
@@ -162,62 +175,134 @@ export default function IntakeDetailPage() {
   const filledCount = forms.filter((f) => f.status !== "pending").length;
   const signedCount = forms.filter((f) => f.status === "signed").length;
   const onboardingLink = `${typeof window !== "undefined" ? window.location.origin : ""}/onboarding/${packet.access_token}`;
+  const pct = forms.length > 0 ? (filledCount / forms.length) * 100 : 0;
+
+  const statusVariant: Record<string, "outline" | "secondary" | "warning" | "success" | "destructive"> = {
+    draft: "outline",
+    sent: "secondary",
+    in_progress: "warning",
+    completed: "success",
+    expired: "destructive",
+  };
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl animate-fade-up">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/intake")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/intake")}
+          className="shrink-0"
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             {contact.first_name} {contact.last_name}
           </h1>
-          <p className="text-sm text-muted-foreground">{contact.email}</p>
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5" />
+            {contact.email}
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Status", value: packet.status, icon: FileText },
-          { label: "Forms Filled", value: `${filledCount}/${forms.length}`, icon: ClipboardCheck },
-          { label: "Signed", value: `${signedCount}`, icon: CheckCircle2 },
-          { label: "Intake Status", value: contact.intake_status?.replace(/_/g, " ") || "—", icon: Clock },
+          {
+            label: "Status",
+            value: packet.status,
+            icon: FileText,
+            variant: statusVariant[packet.status] || "outline",
+          },
+          {
+            label: "Forms Filled",
+            value: `${filledCount}/${forms.length}`,
+            icon: ClipboardCheck,
+            variant: "outline" as const,
+          },
+          {
+            label: "Signed",
+            value: `${signedCount}`,
+            icon: CheckCircle2,
+            variant: "success" as const,
+          },
+          {
+            label: "Intake Status",
+            value: contact.intake_status?.replace(/_/g, " ") || "—",
+            icon: Clock,
+            variant: "secondary" as const,
+          },
         ].map((stat) => (
-          <div key={stat.label} className="border rounded-lg p-3">
-            <p className="text-xs text-muted-foreground">{stat.label}</p>
-            <p className="text-lg font-semibold capitalize">{stat.value}</p>
-          </div>
+          <Card key={stat.label} className="border-border/60 shadow-soft">
+            <CardContent className="p-3.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <stat.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                  {stat.label}
+                </span>
+              </div>
+              <Badge variant={stat.variant} className="text-xs capitalize">
+                {stat.value}
+              </Badge>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
-        <p className="text-sm font-medium">Client Intake Link</p>
-        <div className="flex items-center gap-2">
-          <code className="flex-1 text-xs bg-background border rounded px-3 py-2 truncate">
-            {onboardingLink}
-          </code>
-          <Button size="sm" variant="outline" onClick={handleCopyLink}>
-            {copied ? <CheckCircle2 className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          </Button>
-          <a href={onboardingLink} target="_blank" rel="noopener noreferrer">
-            <Button size="sm" variant="outline">
-              <ExternalLink className="h-3 w-3" />
+      <Card className="border-border/60 shadow-soft">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+              <User className="h-3.5 w-3.5" />
+            </div>
+            <p className="text-sm font-medium">Client Intake Link</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs bg-muted/40 border border-border/60 rounded-md px-3 py-2 truncate font-mono">
+              {onboardingLink}
+            </code>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleCopyLink}
+              className="shrink-0 h-8 w-8"
+            >
+              {copied ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
             </Button>
-          </a>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Send this link to the client so they can fill out their intake forms.
-        </p>
-      </div>
+            <a
+              href={onboardingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0"
+            >
+              <Button size="icon" variant="outline" className="h-8 w-8">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Send this link to the client so they can fill out their intake forms.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap gap-2">
-        <Button onClick={handleSend} disabled={sending}>
+        <Button onClick={handleSend} disabled={sending} className="shadow-soft">
           <Send className="mr-2 h-4 w-4" />
           {sending ? "Sending..." : "Send Email Invite"}
         </Button>
         {packet.status !== "completed" && (
-          <Button variant="outline" onClick={handleMarkComplete} disabled={completing}>
+          <Button
+            variant="outline"
+            onClick={handleMarkComplete}
+            disabled={completing}
+            className="shadow-soft"
+          >
             <CheckCircle2 className="mr-2 h-4 w-4" />
             {completing ? "Marking..." : "Mark Complete"}
           </Button>
@@ -225,78 +310,105 @@ export default function IntakeDetailPage() {
       </div>
 
       {sendError && (
-        <div className="border border-destructive/50 bg-destructive/5 rounded-lg p-3 text-sm text-destructive">
+        <div className="border border-destructive/30 bg-destructive/5 rounded-lg p-3 text-sm text-destructive">
           {sendError}
         </div>
       )}
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">Forms ({forms.length})</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold">Forms ({forms.length})</h2>
+          {forms.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {Math.round(pct)}% complete
+            </span>
+          )}
+        </div>
+        {forms.length > 0 && (
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-3">
+            <div
+              className="h-full bg-foreground rounded-full transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
         <div className="space-y-2">
           {forms.map((form) => (
-            <div
+            <Card
               key={form.id}
-              className="flex items-center justify-between border rounded-lg p-3 hover:bg-muted/30 transition-colors"
+              className="border-border/60 shadow-soft hover:shadow-elevated transition-shadow"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{FORM_ICONS[form.form_type] || "📄"}</span>
-                <div>
-                  <p className="text-sm font-medium">{form.form_title}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    Status: {form.status}
-                    {form.signed_at && ` — Signed ${new Date(form.signed_at).toLocaleDateString()}`}
-                  </p>
+              <CardContent className="p-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xl shrink-0">
+                    {FORM_ICONS[form.form_type] || "📄"}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {form.form_title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {form.status === "signed" && form.signed_at
+                        ? `Signed ${new Date(form.signed_at).toLocaleDateString()}`
+                        : `Status: ${form.status}`}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge
-                  className={
-                    form.status === "signed"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : form.status === "filled"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-gray-100 text-gray-600"
-                  }
-                >
-                  {form.status}
-                </Badge>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => setEditingForm(form)}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge
+                    variant={
+                      form.status === "signed"
+                        ? "success"
+                        : form.status === "filled"
+                          ? "warning"
+                          : "outline"
+                    }
+                    className="text-[10px] capitalize"
+                  >
+                    {form.status}
+                  </Badge>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={() => setEditingForm(form)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
 
       {documents.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Signed Documents</h2>
+          <h2 className="text-base font-semibold mb-3">Signed Documents</h2>
           <div className="space-y-2">
             {documents.map((doc) => (
-              <div
+              <Card
                 key={doc.id}
-                className="flex items-center justify-between border rounded-lg p-3"
+                className="border-border/60 shadow-soft"
               >
-                <div>
-                  <p className="text-sm font-medium">{doc.document_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Signed {new Date(doc.signed_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDownload(doc)}
-                >
-                  <Download className="mr-1 h-3 w-3" />
-                  PDF
-                </Button>
-              </div>
+                <CardContent className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{doc.document_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Signed {new Date(doc.signed_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDownload(doc)}
+                    className="shadow-soft"
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    PDF
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
@@ -310,18 +422,19 @@ export default function IntakeDetailPage() {
               Fill out this form on behalf of the client
             </DialogDescription>
           </DialogHeader>
-          {editingForm && (() => {
-            const template = getFormTemplate(editingForm.form_type);
-            if (!template) return <p>Form template not found</p>;
-            return (
-              <FormRenderer
-                template={template}
-                initialData={editingForm.form_data as Record<string, string>}
-                onSubmit={handleSaveForm}
-                submitting={saving}
-              />
-            );
-          })()}
+          {editingForm &&
+            (() => {
+              const template = getFormTemplate(editingForm.form_type);
+              if (!template) return <p>Form template not found</p>;
+              return (
+                <FormRenderer
+                  template={template}
+                  initialData={editingForm.form_data as Record<string, string>}
+                  onSubmit={handleSaveForm}
+                  submitting={saving}
+                />
+              );
+            })()}
         </DialogContent>
       </Dialog>
     </div>
