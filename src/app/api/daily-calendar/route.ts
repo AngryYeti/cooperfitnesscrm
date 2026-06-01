@@ -30,14 +30,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Gmail not configured" }, { status: 500 });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
     const todayStart = `${today}T00:00:00`;
-    const todayEnd = `${today}T23:59:59`;
+    const tomorrowEnd = `${tomorrowStr}T23:59:59`;
 
     const { data: events, error } = await supabase
       .from("calendar_events")
       .select("*, contacts(first_name, last_name)")
-      .lte("start_time", todayEnd)
+      .lte("start_time", tomorrowEnd)
       .gte("end_time", todayStart)
       .order("start_time", { ascending: true });
 
