@@ -244,6 +244,7 @@ export function CalendarView() {
         eventsRef.current = reverted;
         return reverted;
       });
+      throw err;
     } finally {
       setToggling(false);
     }
@@ -583,48 +584,13 @@ export function CalendarView() {
           </DialogHeader>
           {selectedEvent && (
             <div className="space-y-4">
-              <button
-                type="button"
-                onClick={handleToggleCompleted}
-                disabled={toggling}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-lg border p-3 transition-all text-left",
-                  selectedEvent.completed
-                    ? "border-success/30 bg-success/5"
-                    : "border-border/60 hover:border-foreground/30 hover:bg-muted/30"
-                )}
-              >
-                <div
-                  className={cn(
-                    "h-5 w-5 rounded border-2 flex items-center justify-center transition-colors shrink-0",
-                    selectedEvent.completed
-                      ? "bg-success border-success"
-                      : "border-input"
-                  )}
-                >
-                  {selectedEvent.completed && (
-                    <Check
-                      className="h-3.5 w-3.5 text-success-foreground"
-                      strokeWidth={3}
-                    />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">
-                    {selectedEvent.completed ? "Completed" : "Mark as complete"}
-                  </p>
-                  {selectedEvent.completed && selectedEvent.completed_at && (
-                    <p className="text-xs text-muted-foreground">
-                      Completed {format(new Date(selectedEvent.completed_at), "MMM d, h:mm a")}
-                    </p>
-                  )}
-                  {!selectedEvent.completed && (
-                    <p className="text-xs text-muted-foreground">
-                      Tick off when this event is done
-                    </p>
-                  )}
-                </div>
-              </button>
+              <CompletionToggle
+                eventId={selectedEvent.id}
+                serverCompleted={selectedEvent.completed}
+                serverCompletedAt={selectedEvent.completed_at}
+                onToggle={handleToggleCompleted}
+                pending={toggling}
+              />
 
               {selectedEvent.description && (
                 <p className="text-sm text-muted-foreground leading-relaxed">
@@ -649,6 +615,88 @@ export function CalendarView() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function CompletionToggle({
+  eventId,
+  serverCompleted,
+  serverCompletedAt,
+  onToggle,
+  pending,
+}: {
+  eventId: string;
+  serverCompleted: boolean;
+  serverCompletedAt: string | null;
+  onToggle: () => void | Promise<void>;
+  pending: boolean;
+}) {
+  const [optimistic, setOptimistic] = useState(serverCompleted);
+  const [error, setError] = useState(false);
+  const lastSyncedId = useRef(eventId);
+
+  useEffect(() => {
+    if (lastSyncedId.current !== eventId) {
+      setOptimistic(serverCompleted);
+      setError(false);
+      lastSyncedId.current = eventId;
+    }
+  }, [eventId, serverCompleted]);
+
+  const handleClick = async () => {
+    if (pending || error) return;
+    const previous = optimistic;
+    const next = !optimistic;
+    setOptimistic(next);
+    setError(false);
+    try {
+      await onToggle();
+    } catch {
+      setOptimistic(previous);
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <label
+        className={cn(
+          "flex items-center gap-3 rounded-lg border p-3 transition-all cursor-pointer select-none",
+          optimistic
+            ? "border-success/30 bg-success/5"
+            : "border-border/60 hover:border-foreground/30 hover:bg-muted/30",
+          pending && "opacity-60 pointer-events-none"
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={optimistic}
+          onChange={handleClick}
+          disabled={pending}
+          className="h-5 w-5 rounded border-2 border-input text-success accent-success cursor-pointer shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">
+            {optimistic ? "Completed" : "Mark as complete"}
+          </p>
+          {optimistic && serverCompletedAt && (
+            <p className="text-xs text-muted-foreground">
+              Completed {format(new Date(serverCompletedAt), "MMM d, h:mm a")}
+            </p>
+          )}
+          {!optimistic && (
+            <p className="text-xs text-muted-foreground">
+              Tick off when this event is done
+            </p>
+          )}
+        </div>
+      </label>
+      {error && (
+        <p className="text-xs text-destructive px-1">
+          Couldn&apos;t save. Click to retry.
+        </p>
+      )}
     </div>
   );
 }
