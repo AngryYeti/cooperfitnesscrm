@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -15,6 +16,8 @@ import {
   Clock,
   Check,
   Plus,
+  Loader2,
+  Pencil,
 } from "lucide-react";
 import { Contact, Note, ClientChecklist } from "@/lib/types";
 import { format } from "date-fns";
@@ -51,6 +54,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getChecklistTemplates } from "@/lib/actions/checklists";
+import { cn } from "@/lib/utils";
 
 const statusBadgeMap: Record<string, "lead" | "trial" | "active" | "completed"> = {
   Lead: "lead",
@@ -62,7 +66,7 @@ const statusBadgeMap: Record<string, "lead" | "trial" | "active" | "completed"> 
 const statusOptions = ["Lead", "Trial", "Active Client", "Completed"];
 
 export function ContactDetailView({
-  contact,
+  contact: initialContact,
   notes: initialNotes,
   checklists: initialChecklists,
   followUps: initialFollowUps,
@@ -72,6 +76,9 @@ export function ContactDetailView({
   checklists: ClientChecklist[];
   followUps: any[];
 }) {
+  const router = useRouter();
+  const [contact, setContact] = useState(initialContact);
+  const [isPending, startTransition] = useTransition();
   const [notes, setNotes] = useState(initialNotes);
   const [checklists, setChecklists] = useState(initialChecklists);
   const [followUps, setFollowUps] = useState(initialFollowUps);
@@ -84,6 +91,19 @@ export function ContactDetailView({
 
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
+
+  const saveField = (patch: Partial<Contact>) => {
+    const previous = contact;
+    setContact({ ...contact, ...patch });
+    startTransition(async () => {
+      try {
+        await updateContact(contact.id, patch);
+        router.refresh();
+      } catch {
+        setContact(previous);
+      }
+    });
+  };
 
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
@@ -145,7 +165,7 @@ export function ContactDetailView({
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    await updateContact(contact.id, { status: newStatus as any });
+    saveField({ status: newStatus as any });
   };
 
   return (
@@ -167,9 +187,13 @@ export function ContactDetailView({
             {contact.last_name?.[0] || ""}
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {contact.first_name} {contact.last_name}
-            </h1>
+            <EditableNameField
+              contact={contact}
+              saving={isPending}
+              onSave={(first, last) =>
+                saveField({ first_name: first, last_name: last })
+              }
+            />
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Select value={contact.status} onValueChange={handleStatusChange}>
                 <SelectTrigger className="h-7 px-2.5 text-xs font-medium border-border/60">
@@ -204,28 +228,24 @@ export function ContactDetailView({
 
       <Card className="shadow-soft">
         <CardContent className="p-5 grid gap-5 sm:grid-cols-2">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Mail className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Email</p>
-              <p className="text-sm font-medium truncate">
-                {contact.email || "—"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Phone className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Phone</p>
-              <p className="text-sm font-medium">
-                {contact.phone || "—"}
-              </p>
-            </div>
-          </div>
+          <EditableInfoRow
+            icon={<Mail className="h-4 w-4" />}
+            label="Email"
+            value={contact.email || ""}
+            placeholder="Add email"
+            type="email"
+            saving={isPending}
+            onSave={(v) => saveField({ email: v || null })}
+          />
+          <EditableInfoRow
+            icon={<Phone className="h-4 w-4" />}
+            label="Phone"
+            value={contact.phone || ""}
+            placeholder="Add phone"
+            type="tel"
+            saving={isPending}
+            onSave={(v) => saveField({ phone: v || null })}
+          />
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Calendar className="h-4 w-4" />
@@ -237,17 +257,15 @@ export function ContactDetailView({
               </p>
             </div>
           </div>
-          {contact.fitness_goal && (
-            <div className="flex items-start gap-3 sm:col-span-2">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Target className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Fitness Goal</p>
-                <p className="text-sm">{contact.fitness_goal}</p>
-              </div>
-            </div>
-          )}
+          <EditableInfoRow
+            icon={<Target className="h-4 w-4" />}
+            label="Fitness Goal"
+            value={contact.fitness_goal || ""}
+            placeholder="Add fitness goal"
+            multiline
+            saving={isPending}
+            onSave={(v) => saveField({ fitness_goal: v || null })}
+          />
           {contact.tags && contact.tags.length > 0 && (
             <div className="flex items-start gap-3 sm:col-span-2">
               <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -520,6 +538,235 @@ export function ContactDetailView({
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function EditableNameField({
+  contact,
+  saving,
+  onSave,
+}: {
+  contact: Contact;
+  saving: boolean;
+  onSave: (firstName: string, lastName: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [first, setFirst] = useState(contact.first_name);
+  const [last, setLast] = useState(contact.last_name || "");
+  const firstRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!editing) {
+      setFirst(contact.first_name);
+      setLast(contact.last_name || "");
+    }
+  }, [contact.first_name, contact.last_name, editing]);
+
+  useEffect(() => {
+    if (editing) firstRef.current?.focus();
+  }, [editing]);
+
+  const commit = () => {
+    const trimmedFirst = first.trim();
+    const trimmedLast = last.trim();
+    if (
+      !trimmedFirst ||
+      (trimmedFirst === contact.first_name &&
+        trimmedLast === (contact.last_name || ""))
+    ) {
+      setEditing(false);
+      setFirst(contact.first_name);
+      setLast(contact.last_name || "");
+      return;
+    }
+    onSave(trimmedFirst, trimmedLast);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Input
+          ref={firstRef}
+          value={first}
+          onChange={(e) => setFirst(e.target.value)}
+          onBlur={() => setTimeout(commit, 100)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            }
+            if (e.key === "Escape") {
+              setFirst(contact.first_name);
+              setLast(contact.last_name || "");
+              setEditing(false);
+            }
+          }}
+          disabled={saving}
+          className="h-9 text-lg font-bold w-40"
+          placeholder="First"
+        />
+        <Input
+          value={last}
+          onChange={(e) => setLast(e.target.value)}
+          onBlur={() => setTimeout(commit, 100)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            }
+            if (e.key === "Escape") {
+              setFirst(contact.first_name);
+              setLast(contact.last_name || "");
+              setEditing(false);
+            }
+          }}
+          disabled={saving}
+          className="h-9 text-lg font-bold w-40"
+          placeholder="Last"
+        />
+        {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="group inline-flex items-center gap-2 rounded-md px-1 -ml-1 hover:bg-muted/60 transition-colors text-left"
+      title="Click to edit name"
+    >
+      <h1 className="text-2xl font-bold tracking-tight">
+        {contact.first_name} {contact.last_name}
+      </h1>
+      <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
+  );
+}
+
+function EditableInfoRow({
+  icon,
+  label,
+  value,
+  placeholder,
+  type = "text",
+  multiline = false,
+  saving,
+  onSave,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  placeholder: string;
+  type?: "text" | "email" | "tel";
+  multiline?: boolean;
+  saving: boolean;
+  onSave: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [temp, setTemp] = useState(value);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!editing) setTemp(value);
+  }, [value, editing]);
+
+  useEffect(() => {
+    if (editing) {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        if (el instanceof HTMLInputElement) el.select();
+      }
+    }
+  }, [editing]);
+
+  const commit = () => {
+    if (temp === value) {
+      setEditing(false);
+      return;
+    }
+    onSave(temp.trim());
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-start gap-3">
+      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {editing ? (
+          multiline ? (
+            <Textarea
+              ref={inputRef as React.Ref<HTMLTextAreaElement>}
+              value={temp}
+              onChange={(e) => setTemp(e.target.value)}
+              onBlur={() => setTimeout(commit, 100)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  commit();
+                }
+                if (e.key === "Escape") {
+                  setTemp(value);
+                  setEditing(false);
+                }
+              }}
+              disabled={saving}
+              rows={2}
+              className="mt-1 text-sm resize-none"
+            />
+          ) : (
+            <Input
+              ref={inputRef as React.Ref<HTMLInputElement>}
+              type={type}
+              value={temp}
+              onChange={(e) => setTemp(e.target.value)}
+              onBlur={() => setTimeout(commit, 100)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commit();
+                }
+                if (e.key === "Escape") {
+                  setTemp(value);
+                  setEditing(false);
+                }
+              }}
+              disabled={saving}
+              className="h-8 mt-0.5 text-sm"
+            />
+          )
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className={cn(
+              "group flex items-center gap-1.5 rounded px-1 -ml-1 py-0.5 hover:bg-muted/60 transition-colors w-full text-left",
+              saving && "opacity-60 pointer-events-none"
+            )}
+            title="Click to edit"
+          >
+            <p
+              className={cn(
+                "text-sm font-medium truncate flex-1",
+                !value && "text-muted-foreground/60 italic font-normal"
+              )}
+            >
+              {value || placeholder}
+            </p>
+            {saving ? (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            ) : (
+              <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

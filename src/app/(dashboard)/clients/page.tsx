@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -14,7 +14,6 @@ import {
   Mail,
   Phone,
   Users as UsersIcon,
-  Loader2,
 } from "lucide-react";
 import { Contact, ContactStatus } from "@/lib/types";
 import {
@@ -48,7 +47,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ContactForm } from "@/components/forms/contact-form";
-import { cn } from "@/lib/utils";
 
 const statusOptions: ContactStatus[] = [
   "Lead",
@@ -266,63 +264,37 @@ function ClientsPageInner() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-gradient-soft flex items-center justify-center text-xs font-medium shrink-0">
+                          {contact.first_name[0]}
+                          {contact.last_name?.[0] || ""}
+                        </div>
                         <Link
                           href={`/clients/${contact.id}`}
-                          className="h-9 w-9 rounded-full bg-gradient-soft flex items-center justify-center text-xs font-medium shrink-0 hover:scale-105 transition-transform"
-                          title="View details"
+                          className="font-medium hover:underline decoration-foreground/30 underline-offset-2"
                         >
-                          {contact.first_name?.[0] || ""}
-                          {contact.last_name?.[0] || ""}
+                          {contact.first_name} {contact.last_name}
                         </Link>
-                        <EditableName
-                          contact={contact}
-                          onSave={async (first, last) => {
-                            await updateContact(contact.id, {
-                              first_name: first,
-                              last_name: last,
-                            });
-                          }}
-                        />
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
-                      <div className="text-muted-foreground text-xs space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Mail className="h-3 w-3 shrink-0" />
-                          <EditableCell
-                            value={contact.email || ""}
-                            placeholder="Add email"
-                            type="email"
-                            className="text-xs"
-                            inputClassName="h-6 text-xs"
-                            onSave={async (v) => {
-                              await updateContact(contact.id, { email: v || null });
-                            }}
-                          />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Phone className="h-3 w-3 shrink-0" />
-                          <EditableCell
-                            value={contact.phone || ""}
-                            placeholder="Add phone"
-                            type="tel"
-                            className="text-xs"
-                            inputClassName="h-6 text-xs"
-                            onSave={async (v) => {
-                              await updateContact(contact.id, { phone: v || null });
-                            }}
-                          />
-                        </div>
+                      <div className="text-muted-foreground text-xs space-y-0.5">
+                        {contact.email && (
+                          <div className="flex items-center gap-1.5">
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate max-w-[180px]">{contact.email}</span>
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div className="flex items-center gap-1.5">
+                            <Phone className="h-3 w-3" />
+                            {contact.phone}
+                          </div>
+                        )}
+                        {!contact.email && !contact.phone && "—"}
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground max-w-[200px]">
-                      <EditableCell
-                        value={contact.fitness_goal || ""}
-                        placeholder="Add fitness goal"
-                        onSave={async (v) => {
-                          await updateContact(contact.id, { fitness_goal: v || null });
-                        }}
-                      />
+                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground max-w-[200px] truncate">
+                      {contact.fitness_goal || "—"}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={statusBadgeMap[contact.status]}>
@@ -452,212 +424,5 @@ export default function ClientsPage() {
     <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
       <ClientsPageInner />
     </Suspense>
-  );
-}
-
-function EditableCell({
-  value,
-  onSave,
-  type = "text",
-  placeholder = "—",
-  className,
-  inputClassName,
-}: {
-  value: string;
-  onSave: (value: string) => Promise<void>;
-  type?: "text" | "email" | "tel";
-  placeholder?: string;
-  className?: string;
-  inputClassName?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [tempValue, setTempValue] = useState(value);
-  const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!editing) setTempValue(value);
-  }, [value, editing]);
-
-  useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-  }, [editing]);
-
-  const handleSave = async () => {
-    if (tempValue === value) {
-      setEditing(false);
-      return;
-    }
-    setSaving(true);
-    try {
-      await onSave(tempValue);
-      setEditing(false);
-    } catch {
-      setTempValue(value);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (editing) {
-    return (
-      <div className="relative flex items-center gap-1">
-        <Input
-          ref={inputRef}
-          type={type}
-          value={tempValue}
-          onChange={(e) => setTempValue(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSave();
-            }
-            if (e.key === "Escape") {
-              setTempValue(value);
-              setEditing(false);
-            }
-          }}
-          disabled={saving}
-          className={cn("h-7 text-sm", inputClassName)}
-          onClick={(e) => e.stopPropagation()}
-        />
-        {saving && (
-          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setEditing(true);
-      }}
-      className={cn(
-        "text-left w-full truncate rounded px-1.5 py-0.5 -mx-1.5 hover:bg-muted/60 transition-colors",
-        !value && "text-muted-foreground/60 italic",
-        className
-      )}
-      title="Click to edit"
-    >
-      {value || placeholder}
-    </button>
-  );
-}
-
-function EditableName({
-  contact,
-  onSave,
-}: {
-  contact: Contact;
-  onSave: (firstName: string, lastName: string) => Promise<void>;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [first, setFirst] = useState(contact.first_name);
-  const [last, setLast] = useState(contact.last_name || "");
-  const [saving, setSaving] = useState(false);
-  const firstRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!editing) {
-      setFirst(contact.first_name);
-      setLast(contact.last_name || "");
-    }
-  }, [contact.first_name, contact.last_name, editing]);
-
-  useEffect(() => {
-    if (editing) firstRef.current?.focus();
-  }, [editing]);
-
-  const handleSave = async () => {
-    if (first === contact.first_name && last === (contact.last_name || "")) {
-      setEditing(false);
-      return;
-    }
-    setSaving(true);
-    try {
-      await onSave(first.trim(), last.trim());
-      setEditing(false);
-    } catch {
-      setFirst(contact.first_name);
-      setLast(contact.last_name || "");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-1 flex-1 min-w-0">
-        <Input
-          ref={firstRef}
-          value={first}
-          onChange={(e) => setFirst(e.target.value)}
-          onBlur={() => {
-            setTimeout(handleSave, 100);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSave();
-            }
-            if (e.key === "Escape") {
-              setFirst(contact.first_name);
-              setLast(contact.last_name || "");
-              setEditing(false);
-            }
-          }}
-          disabled={saving}
-          className="h-7 text-sm font-medium min-w-0 flex-1"
-          placeholder="First"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <Input
-          value={last}
-          onChange={(e) => setLast(e.target.value)}
-          onBlur={() => {
-            setTimeout(handleSave, 100);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSave();
-            }
-            if (e.key === "Escape") {
-              setFirst(contact.first_name);
-              setLast(contact.last_name || "");
-              setEditing(false);
-            }
-          }}
-          disabled={saving}
-          className="h-7 text-sm font-medium min-w-0 flex-1"
-          placeholder="Last"
-          onClick={(e) => e.stopPropagation()}
-        />
-        {saving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setEditing(true);
-      }}
-      className="font-medium hover:bg-muted/60 rounded px-1.5 py-0.5 -mx-1.5 transition-colors text-left"
-      title="Click to edit"
-    >
-      {contact.first_name} {contact.last_name}
-    </button>
   );
 }
