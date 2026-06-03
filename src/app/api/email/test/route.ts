@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { isEmailConfigured, verifyEmailConnection, getEmailConfig, sendEmail, BRAND } from "@/lib/email";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const debug = url.searchParams.get("debug") === "1";
+
   const config = getEmailConfig();
   const configured = isEmailConfigured();
   const maskedUser = config.user
     ? config.user.replace(/(.{2})(.*)(@.*)/, "$1***$3")
     : null;
 
-  return NextResponse.json({
+  const response: Record<string, unknown> = {
     configured,
     host: config.host,
     port: config.port,
@@ -19,7 +22,24 @@ export async function GET() {
     message: configured
       ? "Email service is configured. POST to this endpoint to verify connection or send a test email."
       : "Email service is NOT configured. Set ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD, and EMAIL_FROM in env vars.",
-  });
+  };
+
+  if (debug) {
+    const rawPass = process.env.ZOHO_SMTP_PASSWORD || "";
+    response.debug = {
+      userFull: config.user,
+      userLength: config.user?.length || 0,
+      passLength: rawPass.length,
+      passFirst2: rawPass.slice(0, 2),
+      passLast2: rawPass.slice(-2),
+      passHasSpaces: rawPass !== rawPass.trim() || rawPass.includes(" "),
+      passIsQuoted: rawPass.startsWith('"') && rawPass.endsWith('"'),
+      passCharCodes: Array.from(rawPass).map((c) => c.charCodeAt(0)).join(","),
+      nodeVersion: process.version,
+    };
+  }
+
+  return NextResponse.json(response);
 }
 
 export async function POST(request: Request) {
