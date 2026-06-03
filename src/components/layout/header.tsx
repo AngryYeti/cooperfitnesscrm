@@ -37,7 +37,7 @@ import { useNewEvent } from "@/components/calendar/new-event-provider";
 const navItems = [
   { name: "Overview", href: "/", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
-  { name: "Sessions", href: "/calendar", icon: CalendarDays },
+  { name: "Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Messages", href: "/email", icon: Mail },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
   { name: "Intake", href: "/intake", icon: ClipboardCheck },
