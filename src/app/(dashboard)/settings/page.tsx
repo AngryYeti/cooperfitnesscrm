@@ -214,8 +214,12 @@ export default function SettingsPage() {
 {`NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-GMAIL_USER=your-email@gmail.com
-GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+ZOHO_SMTP_HOST=smtp.zoho.com
+ZOHO_SMTP_PORT=465
+ZOHO_SMTP_SECURE=true
+ZOHO_SMTP_USER=your-zoho-email
+ZOHO_SMTP_PASSWORD=your-zoho-app-password
+EMAIL_FROM="Cooper Fitness <noreply@cooper.fitness>"
 CRON_SECRET=any-random-secret-string
 DOCUSEAL_API_TOKEN=your-docuseal-token
 DOCUSEAL_API_URL=https://api.docuseal.co`}

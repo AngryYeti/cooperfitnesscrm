@@ -1,27 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import nodemailer from "nodemailer";
+import { sendEmail, BRAND, isEmailConfigured } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 async function sendDailyCalendar(request: Request) {
   try {
-    const cronSecret = request.headers.get("x-cron-secret");
-    const isCron = cronSecret === process.env.CRON_SECRET;
-
-    const supabase = await createClient();
-    const toEmail = "evan@cooper.fitness";
-
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
-
-    if (!gmailUser || !gmailPass) {
+    if (!isEmailConfigured()) {
       return NextResponse.json(
-        { error: "Gmail not configured", missing: { user: !gmailUser, pass: !gmailPass } },
+        { error: "Zoho SMTP is not configured. Set ZOHO_SMTP_USER and ZOHO_SMTP_PASSWORD in Vercel env vars." },
         { status: 500 }
       );
     }
+
+    const supabase = await createClient();
+    const toEmail = BRAND.replyTo;
 
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
@@ -54,7 +48,7 @@ async function sendDailyCalendar(request: Request) {
       timeZone: "America/New_York",
     });
 
-    let html = `<h2 style="margin-bottom:5px;">Cooper Fitness CRM</h2>`;
+    let html = `<h2 style="margin-bottom:5px;">${BRAND.name} CRM</h2>`;
     html += `<p style="color:#666;margin-top:0;margin-bottom:20px;">${dateStr}</p>`;
 
     if (!events || events.length === 0) {
@@ -115,27 +109,28 @@ async function sendDailyCalendar(request: Request) {
       html += `<p style="margin-top:15px;color:#666;font-size:14px;">${activeEvents.length} active · ${completedEvents.length} completed</p>`;
     }
 
-    html += `<p style="margin-top:25px;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:15px;">Sent daily from Cooper Fitness CRM</p>`;
+    html += `<p style="margin-top:25px;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:15px;">Sent daily from ${BRAND.name} CRM</p>`;
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: gmailUser, pass: gmailPass },
-    });
-
-    const info = await transporter.sendMail({
-      from: '"Cooper Fitness" <evan@cooper.fitness>',
-      replyTo: "evan@cooper.fitness",
+    const result = await sendEmail({
       to: toEmail,
       subject: `Today's Schedule \u2014 ${dateStr}`,
       html,
+      replyTo: BRAND.replyTo,
     });
+
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error, code: result.code },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       sent: events?.length || 0,
       active: events?.filter((e: any) => !e.completed).length || 0,
       completed: events?.filter((e: any) => e.completed).length || 0,
       to: toEmail,
-      messageId: info.messageId,
+      messageId: result.messageId,
       date: dateStr,
     });
   } catch (err: any) {

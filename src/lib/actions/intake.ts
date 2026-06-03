@@ -6,7 +6,7 @@ import {
   createSubmissionFromHtml,
   isConfigured as isDocuSealConfigured,
 } from "@/lib/docuseal";
-import nodemailer from "nodemailer";
+import { sendEmail, BRAND } from "@/lib/email";
 
 const FORM_TEMPLATES = [
   { type: "parq", title: "PAR-Q+ Health Questionnaire", required: true },
@@ -466,29 +466,19 @@ async function sendIntakeEmail(
   clientName: string,
   intakeLink: string
 ) {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
-  if (!gmailUser || !gmailPass) return;
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: gmailUser, pass: gmailPass },
-  });
-
-  await transporter.sendMail({
-    from: '"Cooper Fitness" <evan@cooper.fitness>',
-    replyTo: "evan@cooper.fitness",
+  await sendEmail({
     to: toEmail,
-    subject: "Cooper Fitness - Complete Your Intake Forms",
+    subject: `${BRAND.name} - Complete Your Intake Forms`,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-        <h2>Welcome to Cooper Fitness, ${clientName}!</h2>
+        <h2>Welcome to ${BRAND.name}, ${clientName}!</h2>
         <p>Please complete your intake forms by clicking the link below:</p>
         <a href="${intakeLink}" style="display:inline-block;background:#171717;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:20px 0;">Complete Intake Forms</a>
         <p style="color:#666;font-size:14px;">This link is unique to you. Please do not share it.</p>
         <hr style="margin-top:30px;border:none;border-top:1px solid #eee;">
-        <p style="font-size:12px;color:#999;">Cooper Fitness CRM</p>
+        <p style="font-size:12px;color:#999;">${BRAND.name} CRM</p>
       </div>
     `,
+    replyTo: BRAND.replyTo,
   });
 }

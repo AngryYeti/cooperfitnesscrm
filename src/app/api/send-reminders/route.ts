@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import nodemailer from "nodemailer";
+import { sendEmail, BRAND, isEmailConfigured } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
+    if (!isEmailConfigured()) {
+      return NextResponse.json(
+        { error: "Zoho SMTP is not configured. Set ZOHO_SMTP_USER and ZOHO_SMTP_PASSWORD in Vercel env vars." },
+        { status: 500 }
+      );
+    }
+
     const cronSecret = request.headers.get("x-cron-secret");
     const isCron = cronSecret === process.env.CRON_SECRET;
 
@@ -11,23 +18,16 @@ export async function POST(request: Request) {
     let toEmail: string | undefined;
 
     if (isCron) {
-      toEmail = "evan@cooper.fitness";
+      toEmail = BRAND.replyTo;
     } else {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      toEmail = user?.email || "evan@cooper.fitness";
+      toEmail = user?.email || BRAND.replyTo;
     }
 
     if (!toEmail) {
       return NextResponse.json({ error: "No recipient email configured" }, { status: 500 });
-    }
-
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
-
-    if (!gmailUser || !gmailPass) {
-      return NextResponse.json({ error: "Gmail not configured" }, { status: 500 });
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     const dueToday = followUps.filter((fu: any) => fu.due_date === today);
     const upcoming = followUps.filter((fu: any) => fu.due_date > today);
 
-    let html = `<h2>Cooper Fitness CRM — Pending Follow-Ups</h2>`;
+    let html = `<h2>${BRAND.name} CRM — Pending Follow-Ups</h2>`;
 
     if (overdue.length > 0) {
       html += `<h3 style="color:#dc2626;">Overdue</h3><ul>`;
@@ -73,25 +73,20 @@ export async function POST(request: Request) {
       html += `</ul>`;
     }
 
-    html += `<p style="margin-top:20px;font-size:12px;color:#666;">Sent every 3 hours from Cooper Fitness CRM</p>`;
+    html += `<p style="margin-top:20px;font-size:12px;color:#666;">Sent every 3 hours from ${BRAND.name} CRM</p>`;
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: gmailUser,
-        pass: gmailPass,
-      },
-    });
-
-    await transporter.sendMail({
-      from: '"Cooper Fitness" <evan@cooper.fitness>',
-      replyTo: "evan@cooper.fitness",
+    const result = await sendEmail({
       to: toEmail,
       subject: `${followUps.length} pending follow-up${followUps.length > 1 ? "s" : ""} — ${new Date().toLocaleDateString()}`,
       html,
+      replyTo: BRAND.replyTo,
     });
 
-    return NextResponse.json({ sent: followUps.length });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, code: result.code }, { status: 500 });
+    }
+
+    return NextResponse.json({ sent: followUps.length, messageId: result.messageId });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

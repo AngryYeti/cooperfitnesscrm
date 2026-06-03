@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import nodemailer from "nodemailer";
+import { sendEmail, BRAND } from "@/lib/email";
 
 export async function sendBulkEmails(
   contactIds: string[],
@@ -10,13 +10,6 @@ export async function sendBulkEmails(
 ) {
   if (!contactIds.length) {
     throw new Error("No contacts selected");
-  }
-
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
-
-  if (!gmailUser || !gmailPass) {
-    throw new Error("Gmail not configured");
   }
 
   const supabase = await createClient();
@@ -31,14 +24,6 @@ export async function sendBulkEmails(
     throw new Error("No contacts found");
   }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: gmailUser,
-      pass: gmailPass,
-    },
-  });
-
   let sent = 0;
   const errors: string[] = [];
 
@@ -49,12 +34,12 @@ export async function sendBulkEmails(
     const lastName = contact.last_name || "";
     const fullName = [firstName, lastName].filter(Boolean).join(" ") || firstName || lastName;
 
-    let personalizedBody = body
+    const personalizedBody = body
       .replace(/\{\{\s*first_name\s*\}\}/gi, firstName)
       .replace(/\{\{\s*last_name\s*\}\}/gi, lastName)
       .replace(/\{\{\s*full_name\s*\}\}/gi, fullName);
 
-    let personalizedSubject = subject
+    const personalizedSubject = subject
       .replace(/\{\{\s*first_name\s*\}\}/gi, firstName)
       .replace(/\{\{\s*last_name\s*\}\}/gi, lastName)
       .replace(/\{\{\s*full_name\s*\}\}/gi, fullName);
@@ -64,23 +49,23 @@ export async function sendBulkEmails(
         ${personalizedBody.replace(/\n/g, "<br>")}
         <hr style="margin-top:30px;border:none;border-top:1px solid #eee;">
         <p style="font-size:12px;color:#999;">
-          Sent from Cooper Fitness CRM<br>
+          Sent from ${BRAND.name} CRM<br>
           To unsubscribe, reply to this email.
         </p>
       </div>
     `;
 
-    try {
-      await transporter.sendMail({
-        from: '"Cooper Fitness" <evan@cooper.fitness>',
-        replyTo: "evan@cooper.fitness",
-        to: contact.email,
-        subject: personalizedSubject,
-        html,
-      });
+    const result = await sendEmail({
+      to: contact.email,
+      subject: personalizedSubject,
+      html,
+      replyTo: BRAND.replyTo,
+    });
+
+    if (result.ok) {
       sent++;
-    } catch (err) {
-      errors.push(`${contact.first_name} ${contact.last_name}: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } else {
+      errors.push(`${contact.first_name} ${contact.last_name}: ${result.error}`);
     }
   }
 

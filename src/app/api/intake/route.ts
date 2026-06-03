@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import nodemailer from "nodemailer";
+import { sendEmail, BRAND } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -54,34 +54,30 @@ export async function POST(request: Request) {
       details: "Intake link sent via email",
     });
 
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    const result = await sendEmail({
+      to: contact.email,
+      subject: `${BRAND.name} - Complete Your Intake Forms`,
+      html: `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+          <h2>Welcome to ${BRAND.name}, ${contact.first_name}!</h2>
+          <p>Please complete your intake forms using the secure link below:</p>
+          <a href="${intakeLink}" style="display:inline-block;background:#171717;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:20px 0;">Complete Intake Forms</a>
+          <p style="color:#666;font-size:14px;">This link is unique to you. Please do not share it.</p>
+          <hr style="margin-top:30px;border:none;border-top:1px solid #eee;">
+          <p style="font-size:12px;color:#999;">${BRAND.name} CRM</p>
+        </div>
+      `,
+      replyTo: BRAND.replyTo,
+    });
 
-    if (gmailUser && gmailPass) {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: gmailUser, pass: gmailPass },
-      });
-
-      await transporter.sendMail({
-        from: '"Cooper Fitness" <evan@cooper.fitness>',
-        replyTo: "evan@cooper.fitness",
-        to: contact.email,
-        subject: "Cooper Fitness - Complete Your Intake Forms",
-        html: `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-            <h2>Welcome to Cooper Fitness, ${contact.first_name}!</h2>
-            <p>Please complete your intake forms using the secure link below:</p>
-            <a href="${intakeLink}" style="display:inline-block;background:#171717;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:20px 0;">Complete Intake Forms</a>
-            <p style="color:#666;font-size:14px;">This link is unique to you. Please do not share it.</p>
-            <hr style="margin-top:30px;border:none;border-top:1px solid #eee;">
-            <p style="font-size:12px;color:#999;">Cooper Fitness CRM</p>
-          </div>
-        `,
-      });
+    if (!result.ok) {
+      return NextResponse.json(
+        { success: true, intakeLink, emailWarning: result.error, emailCode: result.code },
+        { status: 200 }
+      );
     }
 
-    return NextResponse.json({ success: true, intakeLink });
+    return NextResponse.json({ success: true, intakeLink, messageId: result.messageId });
   } catch (err) {
     console.error("Send intake error:", err);
     return NextResponse.json(

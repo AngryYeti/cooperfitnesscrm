@@ -44,26 +44,33 @@ A modern, mobile-friendly CRM web app for fitness coaching businesses. Built wit
 
 ### 3. Environment Variables
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file in the project root (see `.env.example` for the full list):
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-GMAIL_USER=your-email@gmail.com
-GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
-REMINDER_EMAIL=your-email@example.com
+ZOHO_SMTP_HOST=smtp.zoho.com
+ZOHO_SMTP_PORT=465
+ZOHO_SMTP_SECURE=true
+ZOHO_SMTP_USER=your-email@cooper.fitness
+ZOHO_SMTP_PASSWORD=your-zoho-app-password
+EMAIL_FROM="Cooper Fitness <noreply@cooper.fitness>"
 CRON_SECRET=any-random-secret-string
+DOCUSEAL_API_TOKEN=your-docuseal-token
+DOCUSEAL_API_URL=https://api.docuseal.co
 ```
 
 > **Service Role Key:** Go to Supabase → Project Settings → API → `service_role key` (keep this secret — it bypasses RLS). Needed for the website lead webhook.
 
-> **Gmail Setup (no DNS required):**
-> 1. Create or use a Gmail account
-> 2. Enable **2-Step Verification** in Google Account settings
-> 3. Go to **Security → App passwords** and generate a 16-character app password
-> 4. Use that as `GMAIL_APP_PASSWORD` (keep it secret)
-> 5. `REMINDER_EMAIL` is where you want reminders sent (can be same as `GMAIL_USER` or different)
+> **Zoho SMTP Setup (no DNS required):**
+> 1. Log in at https://accounts.zoho.com
+> 2. Enable **2-Step Verification** under Security
+> 3. Go to **Security → App Passwords** and generate a new app password for "Mail / SMTP"
+> 4. Use that as `ZOHO_SMTP_PASSWORD` (keep it secret)
+> 5. `ZOHO_SMTP_USER` is your full Zoho email address
+> 6. `EMAIL_FROM` is what recipients see — the address part must match `ZOHO_SMTP_USER` or an alias you've configured in Zoho
+> 7. After deploying, hit `POST /api/email/test` to verify the connection
 
 ### 4. Install & Run
 
