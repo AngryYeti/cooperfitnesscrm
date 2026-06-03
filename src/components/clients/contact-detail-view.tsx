@@ -555,6 +555,7 @@ function EditableNameField({
   const [first, setFirst] = useState(contact.first_name);
   const [last, setLast] = useState(contact.last_name || "");
   const firstRef = useRef<HTMLInputElement>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!editing) {
@@ -584,23 +585,35 @@ function EditableNameField({
     setEditing(false);
   };
 
+  const cancel = () => {
+    setFirst(contact.first_name);
+    setLast(contact.last_name || "");
+    setEditing(false);
+  };
+
   if (editing) {
     return (
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div
+        ref={groupRef}
+        className="flex items-center gap-1.5 flex-wrap"
+        onBlur={(e) => {
+          if (!groupRef.current?.contains(e.relatedTarget as Node)) {
+            commit();
+          }
+        }}
+      >
         <Input
           ref={firstRef}
           value={first}
           onChange={(e) => setFirst(e.target.value)}
-          onBlur={() => setTimeout(commit, 100)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               commit();
             }
             if (e.key === "Escape") {
-              setFirst(contact.first_name);
-              setLast(contact.last_name || "");
-              setEditing(false);
+              e.preventDefault();
+              cancel();
             }
           }}
           disabled={saving}
@@ -610,16 +623,14 @@ function EditableNameField({
         <Input
           value={last}
           onChange={(e) => setLast(e.target.value)}
-          onBlur={() => setTimeout(commit, 100)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               commit();
             }
             if (e.key === "Escape") {
-              setFirst(contact.first_name);
-              setLast(contact.last_name || "");
-              setEditing(false);
+              e.preventDefault();
+              cancel();
             }
           }}
           disabled={saving}
