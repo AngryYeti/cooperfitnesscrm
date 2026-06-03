@@ -51,13 +51,44 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from("contacts")
-      .select("id")
+      .select("id, first_name, last_name")
       .eq("email", email)
       .maybeSingle();
 
     if (existing) {
+      const inquiryDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        timeZone: "America/New_York",
+      });
+      const noteContent = `Additional website inquiry (${inquiryDate}) — Goals: ${goals || "(none provided)"}`;
+
+      const { error: noteError } = await supabase.from("notes").insert({
+        contact_id: existing.id,
+        content: noteContent,
+      });
+
+      if (noteError) {
+        console.error("[webhook] failed to add dedupe note:", noteError.message);
+      }
+
+      await supabase.from("activities").insert({
+        type: "contact_updated",
+        contact_id: existing.id,
+        contact_name: `${existing.first_name} ${existing.last_name}`,
+        description: `Additional website inquiry received from ${existing.first_name} ${existing.last_name}`,
+      });
+
+      console.log("[webhook] merged into existing lead:", existing.id);
       return NextResponse.json(
-        { success: true, id: existing.id, message: "Lead already exists." },
+        {
+          success: true,
+          id: existing.id,
+          merged: true,
+          note: noteError ? null : noteContent,
+          message: "Lead already exists — added inquiry note.",
+        },
         { status: 200, headers }
       );
     }
