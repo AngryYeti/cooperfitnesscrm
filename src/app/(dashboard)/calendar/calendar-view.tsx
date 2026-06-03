@@ -40,8 +40,8 @@ import {
   Check,
   Eye,
   EyeOff,
-  PanelLeftClose,
-  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import {
   getCalendarEvents,
@@ -345,12 +345,140 @@ export function CalendarView() {
 
   return (
     <div className="flex gap-2 h-[calc(100vh-7rem)] min-h-[640px]">
+      <div className="flex-1 min-w-0 flex flex-col rounded-xl border border-border/60 bg-card shadow-soft overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 py-3 border-b border-border/60">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="h-8 shadow-soft"
+            >
+              Today
+            </Button>
+            <div className="flex items-center">
+              <button
+                onClick={goPrev}
+                className="h-8 w-8 rounded-l-md border border-r-0 border-border hover:bg-muted flex items-center justify-center transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={goNext}
+                className="h-8 w-8 rounded-r-md border border-border hover:bg-muted flex items-center justify-center transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <h2 className="text-lg font-semibold tracking-tight ml-1">
+              {headerLabel}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-muted/60 rounded-md p-0.5">
+              {VIEW_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleView(opt.value)}
+                  className={`px-3 h-7 text-xs font-medium rounded-[5px] transition-all ${
+                    view === opt.value
+                      ? "bg-background text-foreground shadow-soft"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {!sidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="hidden lg:inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background shadow-soft hover:border-foreground/30 transition-colors"
+                title="Show sidebar"
+                aria-label="Show sidebar"
+              >
+                <PanelRightOpen className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <DnDCalendar
+            localizer={localizer}
+            events={
+              showCompleted
+                ? events
+                : events.filter((e) => !e.resource?.completed)
+            }
+            startAccessor="start"
+            endAccessor="end"
+            date={date}
+            view={view}
+            views={[Views.MONTH, Views.WEEK, Views.DAY]}
+            onNavigate={handleNavigate}
+            onView={handleView}
+            onSelectSlot={handleSelectSlot}
+            onSelectEvent={handleSelectEvent}
+            selectable
+            popup
+            eventPropGetter={eventPropGetter}
+            dayPropGetter={dayPropGetter}
+            toolbar={false}
+            step={30}
+            timeslots={2}
+            scrollToTime={new Date(1970, 0, 1, 7, 0, 0)}
+            components={{
+              event: ({ event }: { event: RBEvent }) => {
+                const contact = event.resource?.contacts;
+                const contactName = contact
+                  ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim()
+                  : "";
+                return (
+                  <div className="px-1.5 py-0.5 text-[11px] leading-tight min-w-0">
+                    <div className="font-medium flex items-center gap-1 min-w-0">
+                      {event.resource?.completed && (
+                        <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={3} />
+                      )}
+                      <span className="truncate">{event.title}</span>
+                    </div>
+                    {contactName && (
+                      <div className="opacity-80 truncate text-[10px]">
+                        {contactName}
+                      </div>
+                    )}
+                  </div>
+                );
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="hidden lg:flex items-center shrink-0 -mr-1">
+        <button
+          type="button"
+          onClick={() => setSidebarOpen((v) => !v)}
+          className="h-12 w-7 rounded-md border border-border/60 bg-background shadow-soft hover:border-foreground/30 transition-colors flex items-center justify-center group"
+          title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+          aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+        >
+          {sidebarOpen ? (
+            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+          ) : (
+            <ChevronLeft className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+          )}
+        </button>
+      </div>
+
       <aside
         className={cn(
           "hidden lg:flex flex-col shrink-0 overflow-hidden transition-[width,opacity,margin] duration-300 ease-in-out",
           sidebarOpen
-            ? "w-64 opacity-100 mr-0"
-            : "w-0 opacity-0 -mr-2 pointer-events-none"
+            ? "w-64 opacity-100 ml-0"
+            : "w-0 opacity-0 -ml-2 pointer-events-none"
         )}
       >
         <div className="space-y-1.5 mb-4">
@@ -470,130 +598,6 @@ export function CalendarView() {
           </div>
         </div>
       </aside>
-
-      {sidebarOpen && (
-        <div className="hidden lg:flex items-center shrink-0 -ml-1">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(false)}
-            className="h-8 w-5 rounded-md border border-border/60 bg-background shadow-soft hover:border-foreground/30 transition-colors flex items-center justify-center group"
-            title="Hide sidebar"
-            aria-label="Hide sidebar"
-          >
-            <PanelLeftClose className="h-3 w-3 text-muted-foreground group-hover:text-foreground" />
-          </button>
-        </div>
-      )}
-
-      <div className="flex-1 min-w-0 flex flex-col rounded-xl border border-border/60 bg-card shadow-soft overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 py-3 border-b border-border/60">
-          <div className="flex items-center gap-2">
-            {!sidebarOpen && (
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="hidden lg:inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background shadow-soft hover:border-foreground/30 transition-colors"
-                title="Show sidebar"
-                aria-label="Show sidebar"
-              >
-                <PanelLeftOpen className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-              className="h-8 shadow-soft"
-            >
-              Today
-            </Button>
-            <div className="flex items-center">
-              <button
-                onClick={goPrev}
-                className="h-8 w-8 rounded-l-md border border-r-0 border-border hover:bg-muted flex items-center justify-center transition-colors"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={goNext}
-                className="h-8 w-8 rounded-r-md border border-border hover:bg-muted flex items-center justify-center transition-colors"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-            <h2 className="text-lg font-semibold tracking-tight ml-1">
-              {headerLabel}
-            </h2>
-          </div>
-
-          <div className="flex items-center bg-muted/60 rounded-md p-0.5">
-            {VIEW_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleView(opt.value)}
-                className={`px-3 h-7 text-xs font-medium rounded-[5px] transition-all ${
-                  view === opt.value
-                    ? "bg-background text-foreground shadow-soft"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          <DnDCalendar
-            localizer={localizer}
-            events={
-              showCompleted
-                ? events
-                : events.filter((e) => !e.resource?.completed)
-            }
-            startAccessor="start"
-            endAccessor="end"
-            date={date}
-            view={view}
-            views={[Views.MONTH, Views.WEEK, Views.DAY]}
-            onNavigate={handleNavigate}
-            onView={handleView}
-            onSelectSlot={handleSelectSlot}
-            onSelectEvent={handleSelectEvent}
-            selectable
-            popup
-            eventPropGetter={eventPropGetter}
-            dayPropGetter={dayPropGetter}
-            toolbar={false}
-            step={30}
-            timeslots={2}
-            scrollToTime={new Date(1970, 0, 1, 7, 0, 0)}
-            components={{
-              event: ({ event }: { event: RBEvent }) => {
-                const contact = event.resource?.contacts;
-                const contactName = contact
-                  ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim()
-                  : "";
-                return (
-                  <div className="px-1.5 py-0.5 text-[11px] leading-tight min-w-0">
-                    <div className="font-medium flex items-center gap-1 min-w-0">
-                      {event.resource?.completed && (
-                        <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={3} />
-                      )}
-                      <span className="truncate">{event.title}</span>
-                    </div>
-                    {contactName && (
-                      <div className="opacity-80 truncate text-[10px]">
-                        {contactName}
-                      </div>
-                    )}
-                  </div>
-                );
-              },
-            }}
-          />
-        </div>
-      </div>
 
       <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
         <DialogContent className="bg-background/95 backdrop-blur-md">
