@@ -40,6 +40,8 @@ import {
   Check,
   Eye,
   EyeOff,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import {
   getCalendarEvents,
@@ -101,6 +103,7 @@ export function CalendarView() {
 
   const [miniCalMonth, setMiniCalMonth] = useState(new Date());
   const [showCompleted, setShowCompleted] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { openNewEvent } = useNewEvent();
 
@@ -341,8 +344,15 @@ export function CalendarView() {
   }, []);
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-7rem)] min-h-[640px]">
-      <aside className="hidden xl:flex flex-col w-64 shrink-0">
+    <div className="flex gap-2 h-[calc(100vh-7rem)] min-h-[640px]">
+      <aside
+        className={cn(
+          "hidden lg:flex flex-col shrink-0 overflow-hidden transition-[width,opacity,margin] duration-300 ease-in-out",
+          sidebarOpen
+            ? "w-64 opacity-100 mr-0"
+            : "w-0 opacity-0 -mr-2 pointer-events-none"
+        )}
+      >
         <div className="space-y-1.5 mb-4">
           <Button
             onClick={() => openNewEvent(new Date())}
@@ -461,9 +471,34 @@ export function CalendarView() {
         </div>
       </aside>
 
+      {sidebarOpen && (
+        <div className="hidden lg:flex items-center shrink-0 -ml-1">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(false)}
+            className="h-8 w-5 rounded-md border border-border/60 bg-background shadow-soft hover:border-foreground/30 transition-colors flex items-center justify-center group"
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+          >
+            <PanelLeftClose className="h-3 w-3 text-muted-foreground group-hover:text-foreground" />
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 min-w-0 flex flex-col rounded-xl border border-border/60 bg-card shadow-soft overflow-hidden">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 py-3 border-b border-border/60">
           <div className="flex items-center gap-2">
+            {!sidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="hidden lg:inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background shadow-soft hover:border-foreground/30 transition-colors"
+                title="Show sidebar"
+                aria-label="Show sidebar"
+              >
+                <PanelLeftOpen className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
             <Button
               variant="outline"
               size="sm"
