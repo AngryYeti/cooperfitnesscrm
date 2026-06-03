@@ -12,7 +12,9 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const names: string[] = Array.isArray(body.names) ? body.names : [];
     const subject: string = body.subject || "Test from Cooper Fitness CRM";
-    const messageBody: string = body.body || "Hey {{first_name}}!\n\nThis is a test bulk email from the new Zoho SMTP integration. If you're seeing this, everything is wired up correctly.\n\n— Cooper Fitness";
+    const messageBody: string =
+      body.body ||
+      "Hey {{first_name}}!\n\nThis is a test bulk email from the new Zoho SMTP integration. If you're seeing this, everything is wired up correctly.\n\n— Cooper Fitness";
 
     if (names.length === 0) {
       return NextResponse.json({ error: "Provide a 'names' array in the body" }, { status: 400 });
@@ -20,25 +22,35 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
+    const orClauses: string[] = [];
+    for (const name of names) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length === 1) {
+        orClauses.push(`first_name.ilike.%${parts[0]}%`);
+        orClauses.push(`last_name.ilike.%${parts[0]}%`);
+      } else {
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        orClauses.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
+        orClauses.push(`and(first_name.ilike.%${last}%,last_name.ilike.%${first}%)`);
+        for (let i = 1; i < parts.length - 1; i++) {
+          orClauses.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${parts[i]}%)`);
+          orClauses.push(`and(first_name.ilike.%${parts[i]}%,last_name.ilike.%${last}%)`);
+        }
+      }
+    }
+
     const { data: contacts, error } = await supabase
       .from("contacts")
       .select("id, first_name, last_name, email")
-      .or(
-        names
-          .map((n) => {
-            const parts = n.trim().split(/\s+/);
-            if (parts.length === 1) return `first_name.ilike.${parts[0]},last_name.ilike.${parts[0]}`;
-            return `first_name.ilike.${parts[0]},last_name.ilike.${parts[parts.length - 1]}`;
-          })
-          .join(",")
-      );
+      .or(orClauses.join(","));
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message, query: orClauses.join(",") }, { status: 500 });
     }
 
     if (!contacts || contacts.length === 0) {
-      return NextResponse.json({ error: "No contacts matched", names }, { status: 404 });
+      return NextResponse.json({ error: "No contacts matched", names, query: orClauses }, { status: 404 });
     }
 
     const matched = contacts.map((c: any) => ({
