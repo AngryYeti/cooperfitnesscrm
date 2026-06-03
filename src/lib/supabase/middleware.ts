@@ -36,7 +36,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/api/webhooks") ||
     request.nextUrl.pathname.startsWith("/api/send-reminders") ||
-    request.nextUrl.pathname.startsWith("/api/daily-calendar");
+    request.nextUrl.pathname.startsWith("/api/daily-calendar") ||
+    request.nextUrl.pathname.startsWith("/api/email/");
 
   if (!user && !request.nextUrl.pathname.startsWith("/login") && !isPublicRoute) {
     const url = request.nextUrl.clone();
