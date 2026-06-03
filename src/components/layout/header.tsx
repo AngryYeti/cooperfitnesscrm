@@ -11,7 +11,6 @@ import {
   Mail,
   ClipboardCheck,
   Settings,
-  Dumbbell,
   Menu,
   Moon,
   Sun,
@@ -36,11 +35,11 @@ import { createClient } from "@/lib/supabase/client";
 import { useNewEvent } from "@/components/calendar/new-event-provider";
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Overview", href: "/", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
-  { name: "Calendar", href: "/calendar", icon: CalendarDays },
+  { name: "Sessions", href: "/calendar", icon: CalendarDays },
+  { name: "Messages", href: "/email", icon: Mail },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
-  { name: "Email", href: "/email", icon: Mail },
   { name: "Intake", href: "/intake", icon: ClipboardCheck },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
@@ -67,7 +66,7 @@ export function Header() {
   );
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border/60 glass">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 px-4 sm:px-6 bg-canvas/80 backdrop-blur-md">
       <Button
         variant="ghost"
         size="icon"
@@ -77,34 +76,32 @@ export function Header() {
         <Menu className="h-5 w-5" />
       </Button>
 
-      <Link href="/" className="lg:hidden flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-brand text-primary-foreground">
-          <Dumbbell className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </div>
-        <span className="font-semibold text-sm">Cooper Fitness</span>
-      </Link>
-
       {currentPage && (
         <div className="hidden lg:flex items-center gap-2 ml-1">
-          <currentPage.icon className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-          <h1 className="text-sm font-semibold tracking-tight">{currentPage.name}</h1>
+          <currentPage.icon
+            className="h-4 w-4 text-muted-foreground"
+            strokeWidth={2}
+          />
+          <h1 className="text-sm font-semibold tracking-tight">
+            {currentPage.name}
+          </h1>
         </div>
       )}
 
       <div className="flex-1" />
 
       <div className="hidden md:flex relative w-72 max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search clients, events..."
-          className="h-8 pl-8 text-sm bg-muted/40 border-transparent focus-visible:bg-background"
+          className="h-9 pl-9 text-sm rounded-full bg-card border-border/60 focus-visible:bg-card"
         />
       </div>
 
       <Button
         size="sm"
         variant="default"
-        className="h-8 shadow-soft"
+        className="h-9 rounded-full px-4 bg-foreground text-background hover:bg-foreground/90 shadow-sm"
         onClick={() => openNewEvent()}
       >
         <Plus className="h-3.5 w-3.5" />
@@ -114,7 +111,7 @@ export function Header() {
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-9 w-9 rounded-full"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         aria-label="Toggle theme"
       >
@@ -130,11 +127,14 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-full ring-offset-2 focus-visible:ring-2"
+            className="h-9 w-9 rounded-full ring-offset-2 focus-visible:ring-2"
           >
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-gradient-brand text-primary-foreground text-xs font-medium">
-                CF
+              <AvatarFallback
+                className="text-xs font-semibold text-white"
+                style={{ backgroundColor: "oklch(0.55 0.2 260)" }}
+              >
+                EC
               </AvatarFallback>
             </Avatar>
           </Button>
@@ -142,8 +142,10 @@ export function Header() {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-0.5">
-              <p className="text-sm font-medium">Cooper Fitness</p>
-              <p className="text-xs text-muted-foreground">evan@cooper.fitness</p>
+              <p className="text-sm font-medium">Evan Cooper</p>
+              <p className="text-xs text-muted-foreground">
+                evan@cooper.fitness
+              </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -154,7 +156,10 @@ export function Header() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+          <DropdownMenuItem
+            onClick={handleSignOut}
+            className="text-destructive focus:text-destructive"
+          >
             <LogOut className="mr-2 h-4 w-4" />
             Sign out
           </DropdownMenuItem>
@@ -162,11 +167,12 @@ export function Header() {
       </DropdownMenu>
 
       {mobileOpen && (
-        <div className="absolute top-14 left-0 right-0 border-b border-border/60 glass lg:hidden">
+        <div className="absolute top-16 left-0 right-0 border-b border-border/60 bg-canvas lg:hidden">
           <nav className="flex flex-col p-3 space-y-0.5">
             {navItems.map((item) => {
               const isActive =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`);
               return (
                 <Link key={item.href} href={item.href}>
                   <div
