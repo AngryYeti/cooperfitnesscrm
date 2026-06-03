@@ -18,18 +18,8 @@ import {
 } from "@/lib/actions/calendar";
 import { getContacts } from "@/lib/actions/contacts";
 import type { CalendarEvent } from "@/lib/types";
+import { getEventColor } from "@/lib/event-colors";
 import { format, parseISO } from "date-fns";
-
-const COLORS = [
-  { value: "#2563eb", label: "Blue" },
-  { value: "#16a34a", label: "Green" },
-  { value: "#dc2626", label: "Red" },
-  { value: "#ca8a04", label: "Yellow" },
-  { value: "#9333ea", label: "Purple" },
-  { value: "#ea580c", label: "Orange" },
-  { value: "#0891b2", label: "Cyan" },
-  { value: "#be123c", label: "Rose" },
-];
 
 const TASK_TYPES = [
   { value: "none", label: "None" },
@@ -57,7 +47,6 @@ export function EventForm({
   const [title, setTitle] = useState(event?.title || "");
   const [description, setDescription] = useState(event?.description || "");
   const [allDay, setAllDay] = useState(event?.all_day || false);
-  const [color, setColor] = useState(event?.color || "#2563eb");
   const [taskType, setTaskType] = useState("none");
   const [contactId, setContactId] = useState(event?.contact_id || "");
   const [contacts, setContacts] = useState<
@@ -194,7 +183,7 @@ export function EventForm({
           end_time: end,
           all_day: allDay,
           contact_id: contactIdRef.current || null,
-          color,
+          color: event.color || getEventColor(finalTitle),
         });
       } else {
         const count = recurring === "none" ? 1 : recurCount;
@@ -207,7 +196,7 @@ export function EventForm({
             end_time: end,
             all_day: allDay,
             contact_id: contactIdRef.current || null,
-            color,
+            color: getEventColor(finalTitle),
           });
         }
       }
@@ -372,26 +361,6 @@ export function EventForm({
           )}
         </>
       )}
-
-      <div className="space-y-2">
-        <Label>Color</Label>
-        <div className="flex flex-wrap gap-2">
-          {COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => setColor(c.value)}
-              className={`h-8 w-8 rounded-full border-2 transition-all ${
-                color === c.value
-                  ? "border-foreground scale-110"
-                  : "border-transparent hover:scale-105"
-              }`}
-              style={{ backgroundColor: c.value }}
-              title={c.label}
-            />
-          ))}
-        </div>
-      </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
