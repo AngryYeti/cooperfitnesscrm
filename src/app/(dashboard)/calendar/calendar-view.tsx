@@ -439,8 +439,10 @@ export function CalendarView() {
                         >
                           {e.title}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-[10px] text-muted-foreground truncate">
                           {format(e.start, "MMM d, h:mm a")}
+                          {e.resource?.contacts &&
+                            ` · ${e.resource.contacts.first_name ?? ""} ${e.resource.contacts.last_name ?? ""}`.trim()}
                         </p>
                       </div>
                       {isCompleted && (
@@ -532,14 +534,27 @@ export function CalendarView() {
             timeslots={2}
             scrollToTime={new Date(1970, 0, 1, 7, 0, 0)}
             components={{
-              event: ({ event }: { event: RBEvent }) => (
-                <div className="px-1.5 py-0.5 text-[11px] leading-tight font-medium flex items-center gap-1">
-                  {event.resource?.completed && (
-                    <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={3} />
-                  )}
-                  <span className="truncate">{event.title}</span>
-                </div>
-              ),
+              event: ({ event }: { event: RBEvent }) => {
+                const contact = event.resource?.contacts;
+                const contactName = contact
+                  ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim()
+                  : "";
+                return (
+                  <div className="px-1.5 py-0.5 text-[11px] leading-tight min-w-0">
+                    <div className="font-medium flex items-center gap-1 min-w-0">
+                      {event.resource?.completed && (
+                        <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={3} />
+                      )}
+                      <span className="truncate">{event.title}</span>
+                    </div>
+                    {contactName && (
+                      <div className="opacity-80 truncate text-[10px]">
+                        {contactName}
+                      </div>
+                    )}
+                  </div>
+                );
+              },
             }}
           />
         </div>

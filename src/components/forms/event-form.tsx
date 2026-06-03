@@ -18,7 +18,7 @@ import {
 } from "@/lib/actions/calendar";
 import { getContacts } from "@/lib/actions/contacts";
 import type { CalendarEvent } from "@/lib/types";
-import { format, parseISO, addWeeks, addMonths } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 const COLORS = [
   { value: "#2563eb", label: "Blue" },
@@ -143,29 +143,32 @@ export function EventForm({
           : title.trim();
 
       const buildTimes = (offset = 0) => {
-        let sd = startDate;
-        let ed = endDate;
+        const [sy, sm, sd] = startDate.split("-").map(Number);
+        const [ey, em, ed] = endDate.split("-").map(Number);
+        const [sh, smin] = startTime.split(":").map(Number);
+        const [eh, emin] = endTime.split(":").map(Number);
+
+        const startLocal = allDay
+          ? new Date(sy, sm - 1, sd, 12, 0, 0)
+          : new Date(sy, sm - 1, sd, sh, smin, 0);
+        const endLocal = allDay
+          ? new Date(ey, em - 1, ed, 12, 0, 0)
+          : new Date(ey, em - 1, ed, eh, emin, 0);
 
         if (offset > 0) {
-          const sDate = parseISO(`${startDate}T00:00:00`);
-          const eDate = parseISO(`${endDate}T00:00:00`);
           if (recurring === "weekly") {
-            sd = format(addWeeks(sDate, offset), "yyyy-MM-dd");
-            ed = format(addWeeks(eDate, offset), "yyyy-MM-dd");
+            startLocal.setDate(startLocal.getDate() + offset * 7);
+            endLocal.setDate(endLocal.getDate() + offset * 7);
           } else {
-            sd = format(addMonths(sDate, offset), "yyyy-MM-dd");
-            ed = format(addMonths(eDate, offset), "yyyy-MM-dd");
+            startLocal.setMonth(startLocal.getMonth() + offset);
+            endLocal.setMonth(endLocal.getMonth() + offset);
           }
         }
 
-        const start = allDay
-          ? `${sd}T12:00:00+00:00`
-          : `${sd}T${startTime}:00`;
-        const end = allDay
-          ? `${ed}T12:00:00+00:00`
-          : `${ed}T${endTime}:00`;
-
-        return { start, end };
+        return {
+          start: startLocal.toISOString(),
+          end: endLocal.toISOString(),
+        };
       };
 
       if (event) {
