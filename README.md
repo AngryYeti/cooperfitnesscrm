@@ -64,13 +64,18 @@ DOCUSEAL_API_URL=https://api.docuseal.co
 > **Service Role Key:** Go to Supabase → Project Settings → API → `service_role key` (keep this secret — it bypasses RLS). Needed for the website lead webhook.
 
 > **Zoho SMTP Setup (no DNS required):**
-> 1. Log in at https://accounts.zoho.com
+> 1. Log in at your Zoho account (region-specific: `accounts.zoho.com`, `.eu`, `.in`, `.com.au`, `.jp`, or `.ca`)
 > 2. Enable **2-Step Verification** under Security
 > 3. Go to **Security → App Passwords** and generate a new app password for "Mail / SMTP"
 > 4. Use that as `ZOHO_SMTP_PASSWORD` (keep it secret)
-> 5. `ZOHO_SMTP_USER` is your full Zoho email address
+> 5. `ZOHO_SMTP_USER` is your full **Zoho** email address (NOT a Gmail/Yahoo alias — Zoho SMTP rejects foreign addresses with 535)
 > 6. `EMAIL_FROM` is what recipients see — the address part must match `ZOHO_SMTP_USER` or an alias you've configured in Zoho
 > 7. After deploying, hit `POST /api/email/test` to verify the connection
+>
+> **SMTP host by account type:**
+> - Personal/free Zoho account: `smtp.zoho.com` (any region)
+> - Zoho Workplace / organization account: `smtp.zohocloud.<region>` — e.g. `smtp.zohocloud.ca` for Canada, `.eu` for Europe
+> - Check your Zoho **Settings → Mail → POP/IMAP** to see the exact outgoing SMTP server for your account
 
 ### 4. Install & Run
 

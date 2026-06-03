@@ -43,7 +43,7 @@ function isValidEmail(value: string): boolean {
 }
 
 export function getEmailConfig() {
-  const host = process.env.ZOHO_SMTP_HOST || "smtp.zoho.com";
+  const host = process.env.ZOHO_SMTP_HOST || "smtp.zohocloud.ca";
   const port = Number(process.env.ZOHO_SMTP_PORT || 465);
   const secure =
     String(process.env.ZOHO_SMTP_SECURE ?? "true").toLowerCase() !== "false";
