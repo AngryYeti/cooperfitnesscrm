@@ -22,6 +22,11 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
+    const { data: allContacts } = await supabase
+      .from("contacts")
+      .select("id, first_name, last_name, email")
+      .limit(50);
+
     const orClauses: string[] = [];
     for (const name of names) {
       const parts = name.trim().split(/\s+/);
@@ -50,7 +55,15 @@ export async function POST(request: Request) {
     }
 
     if (!contacts || contacts.length === 0) {
-      return NextResponse.json({ error: "No contacts matched", names, query: orClauses }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: "No contacts matched",
+          names,
+          query: orClauses,
+          allContacts: allContacts || [],
+        },
+        { status: 404 }
+      );
     }
 
     const matched = contacts.map((c: any) => ({
