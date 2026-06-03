@@ -10,6 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { EventForm } from "@/components/forms/event-form";
+import { useCalendarRefresh } from "./refresh-context";
 
 type NewEventContextValue = {
   openNewEvent: (defaultDate?: Date) => void;
@@ -21,6 +22,7 @@ export function NewEventProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
   const router = useRouter();
+  const { trigger: triggerCalendarRefresh } = useCalendarRefresh();
 
   const openNewEvent = useCallback((date?: Date) => {
     setDefaultDate(date);
@@ -30,6 +32,7 @@ export function NewEventProvider({ children }: { children: ReactNode }) {
   const handleSuccess = () => {
     setOpen(false);
     setDefaultDate(undefined);
+    triggerCalendarRefresh();
     router.refresh();
   };
 

@@ -59,6 +59,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EventForm } from "@/components/forms/event-form";
 import { useNewEvent } from "@/components/calendar/new-event-provider";
+import { useCalendarRefresh } from "@/components/calendar/refresh-context";
 import { cn, lightenHex, getReadableTextColor } from "@/lib/utils";
 import "./calendar.css";
 
@@ -106,6 +107,7 @@ export function CalendarView() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { openNewEvent } = useNewEvent();
+  const { register: registerRefresh, trigger: triggerRefresh } = useCalendarRefresh();
 
   const getDateRange = useCallback(() => {
     if (view === Views.MONTH) {
@@ -146,6 +148,10 @@ export function CalendarView() {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  useEffect(() => {
+    return registerRefresh(fetchEvents);
+  }, [registerRefresh, fetchEvents]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -688,13 +694,13 @@ function CompletionToggle({
   pending: boolean;
 }) {
   const [optimistic, setOptimistic] = useState(serverCompleted);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const lastSyncedId = useRef(eventId);
 
   useEffect(() => {
     if (lastSyncedId.current !== eventId) {
       setOptimistic(serverCompleted);
-      setError(false);
+      setError(null);
       lastSyncedId.current = eventId;
     }
   }, [eventId, serverCompleted]);
@@ -704,12 +710,18 @@ function CompletionToggle({
     const previous = optimistic;
     const next = !optimistic;
     setOptimistic(next);
-    setError(false);
+    setError(null);
     try {
       await onToggle();
-    } catch {
+    } catch (e: any) {
       setOptimistic(previous);
-      setError(true);
+      if (e?.code === "MISSING_COLUMN" || e?.message?.includes("MISSING_COLUMN")) {
+        setError(
+          "Database needs a one-time update. Run supabase/calendar-completed-migration.sql in Supabase SQL Editor, then retry."
+        );
+      } else {
+        setError(e?.message || "Couldn't save. Click to retry.");
+      }
     }
   };
 
@@ -748,8 +760,8 @@ function CompletionToggle({
         </div>
       </label>
       {error && (
-        <p className="text-xs text-destructive px-1">
-          Couldn&apos;t save. Click to retry.
+        <p className="text-xs text-destructive px-1 leading-relaxed">
+          {error}
         </p>
       )}
     </div>

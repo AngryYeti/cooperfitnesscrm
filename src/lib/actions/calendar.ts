@@ -118,6 +118,26 @@ export async function toggleEventCompleted(
   completed: boolean
 ) {
   const supabase = await createClient();
+
+  const { data: cols, error: colsError } = await supabase
+    .from("calendar_events")
+    .select("completed")
+    .limit(1);
+
+  if (
+    !colsError &&
+    Array.isArray(cols) &&
+    cols.length > 0 &&
+    cols[0] &&
+    !("completed" in cols[0])
+  ) {
+    const err = new Error(
+      "MISSING_COLUMN: The 'completed' column is missing. Run supabase/calendar-completed-migration.sql in the Supabase SQL Editor."
+    );
+    (err as any).code = "MISSING_COLUMN";
+    throw err;
+  }
+
   const { data, error } = await supabase
     .from("calendar_events")
     .update({
@@ -128,7 +148,19 @@ export async function toggleEventCompleted(
     .select("id, title, contact_id, contacts(first_name, last_name)")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (
+      error.message?.includes("column") &&
+      error.message?.includes("completed")
+    ) {
+      const err = new Error(
+        "MISSING_COLUMN: The 'completed' column is missing. Run supabase/calendar-completed-migration.sql in the Supabase SQL Editor."
+      );
+      (err as any).code = "MISSING_COLUMN";
+      throw err;
+    }
+    throw new Error(error.message);
+  }
 
   if (data?.contact_id && data?.contacts) {
     const contact = data.contacts as unknown as {
