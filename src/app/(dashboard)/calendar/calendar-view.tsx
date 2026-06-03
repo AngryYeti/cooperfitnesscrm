@@ -613,6 +613,7 @@ export function CalendarView() {
                 </p>
               )}
               <EventForm
+                key={selectedEvent?.id || "new"}
                 event={selectedEvent}
                 onSuccess={handleUpdateSuccess}
               />

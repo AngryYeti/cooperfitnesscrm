@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,15 +94,29 @@ export function EventForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadContacts = async () => {
+  const contactIdRef = useRef(contactId);
+  useEffect(() => {
+    contactIdRef.current = contactId;
+  }, [contactId]);
+
+  useEffect(() => {
     if (contactsLoaded || contactsError) return;
-    try {
-      const data = await getContacts();
-      setContacts(data);
-      setContactsLoaded(true);
-    } catch {
-      setContactsError(true);
-    }
+    getContacts()
+      .then((data) => {
+        setContacts(data);
+        setContactsLoaded(true);
+      })
+      .catch(() => setContactsError(true));
+  }, [contactsLoaded, contactsError]);
+
+  const loadContacts = () => {
+    if (contactsLoaded || contactsError) return;
+    getContacts()
+      .then((data) => {
+        setContacts(data);
+        setContactsLoaded(true);
+      })
+      .catch(() => setContactsError(true));
   };
 
   const handleTaskTypeChange = (value: string) => {
@@ -179,7 +193,7 @@ export function EventForm({
           start_time: start,
           end_time: end,
           all_day: allDay,
-          contact_id: contactId || null,
+          contact_id: contactIdRef.current || null,
           color,
         });
       } else {
@@ -192,7 +206,7 @@ export function EventForm({
             start_time: start,
             end_time: end,
             all_day: allDay,
-            contact_id: contactId || null,
+            contact_id: contactIdRef.current || null,
             color,
           });
         }

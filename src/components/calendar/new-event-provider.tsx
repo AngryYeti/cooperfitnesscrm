@@ -45,6 +45,7 @@ export function NewEventProvider({ children }: { children: ReactNode }) {
             </DialogDescription>
           </DialogHeader>
           <EventForm
+            key={open ? "open" : "closed"}
             defaultDate={defaultDate}
             onSuccess={handleSuccess}
           />
