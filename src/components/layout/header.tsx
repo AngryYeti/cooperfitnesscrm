@@ -15,13 +15,11 @@ import {
   Moon,
   Sun,
   LogOut,
-  Search,
   Plus,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +31,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
 import { useNewEvent } from "@/components/calendar/new-event-provider";
+import { SearchInput } from "@/components/layout/search-input";
 
 const navItems = [
   { name: "Overview", href: "/", icon: LayoutDashboard },
@@ -90,12 +89,8 @@ export function Header() {
 
       <div className="flex-1" />
 
-      <div className="hidden md:flex relative w-72 max-w-sm">
-        <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search clients, events..."
-          className="h-9 pl-9 text-sm rounded-full bg-card border-border/60 focus-visible:bg-card"
-        />
+      <div className="hidden md:flex w-72 max-w-sm">
+        <SearchInput />
       </div>
 
       <Button

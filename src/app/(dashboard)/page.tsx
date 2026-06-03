@@ -9,7 +9,6 @@ import {
   TrendingDown,
   Activity,
   Plus,
-  Search,
   Bell,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -17,7 +16,7 @@ import { getDashboardStats, getContacts } from "@/lib/actions/contacts";
 import { getRecentActivities } from "@/lib/actions/activities";
 import { getOverdueFollowUps } from "@/lib/actions/follow-ups";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/layout/search-input";
 
 export default async function DashboardPage() {
   const [stats, activities, overdueFollowUps, recentContacts] =
@@ -81,12 +80,8 @@ export default async function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden md:block relative w-72">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search clients, programs..."
-              className="h-11 pl-11 text-sm rounded-full bg-card border-border/60 focus-visible:bg-card"
-            />
+          <div className="hidden md:block w-72">
+            <SearchInput variant="hero" />
           </div>
           <Button
             variant="ghost"
