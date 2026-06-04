@@ -37,7 +37,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/webhooks") ||
     request.nextUrl.pathname.startsWith("/api/send-reminders") ||
     request.nextUrl.pathname.startsWith("/api/daily-calendar") ||
-    request.nextUrl.pathname.startsWith("/api/email/");
+    request.nextUrl.pathname.startsWith("/api/email/") ||
+    request.nextUrl.pathname.startsWith("/api/debug/");
 
   if (!user && !request.nextUrl.pathname.startsWith("/login") && !isPublicRoute) {
     const url = request.nextUrl.clone();
