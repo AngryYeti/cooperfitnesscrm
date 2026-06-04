@@ -1,19 +1,40 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = createAdminClient();
+  const url = new URL(request.url);
+  const startParam = url.searchParams.get("start");
+  const endParam = url.searchParams.get("end");
+  const useDbFilter = url.searchParams.get("db") === "1";
 
-  const { data: events, error } = await supabase
+  let query = supabase
     .from("calendar_events")
     .select(
       "id, title, start_time, end_time, all_day, completed, contact_id, contacts(first_name, last_name)"
     )
     .order("start_time", { ascending: true })
-    .limit(50);
+    .limit(200);
+
+  if (useDbFilter && startParam && endParam) {
+    query = query.lt("start_time", endParam).gt("end_time", startParam);
+  }
+
+  const { data: events, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  let filtered = events || [];
+  if (!useDbFilter && (startParam || endParam)) {
+    const s = startParam ? new Date(startParam).getTime() : -Infinity;
+    const eEnd = endParam ? new Date(endParam).getTime() : Infinity;
+    filtered = filtered.filter((ev: any) => {
+      const st = new Date(ev.start_time).getTime();
+      const en = new Date(ev.end_time).getTime();
+      return st < eEnd && en > s;
+    });
   }
 
   const now = new Date();
@@ -33,8 +54,10 @@ export async function GET() {
     serverNowUTC: now.toISOString(),
     serverNowET: etFmt.format(now),
     etTodayLabel: today,
-    count: events?.length || 0,
-    events: (events || []).map((e: any) => ({
+    filterMode: useDbFilter ? "db" : "js",
+    range: { start: startParam, end: endParam },
+    count: filtered.length,
+    events: (filtered).map((e: any) => ({
       id: e.id,
       title: e.title,
       start_utc: e.start_time,

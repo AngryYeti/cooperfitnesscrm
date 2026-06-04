@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, BRAND, isEmailConfigured } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +80,7 @@ async function sendDailyCalendar(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const toEmail = BRAND.replyTo;
 
     const now = new Date();

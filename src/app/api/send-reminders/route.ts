@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, BRAND, isEmailConfigured } from "@/lib/email";
 
 export async function POST(request: Request) {
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     const cronSecret = request.headers.get("x-cron-secret");
     const isCron = cronSecret === process.env.CRON_SECRET;
 
-    const supabase = await createClient();
+    const supabase = isCron ? createAdminClient() : await createClient();
     let toEmail: string | undefined;
 
     if (isCron) {
