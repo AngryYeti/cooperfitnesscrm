@@ -11,7 +11,8 @@ export async function getCalendarEvents(startDate: string, endDate: string) {
     .select("*, contacts(first_name, last_name)")
     .lte("start_time", endDate)
     .gte("end_time", startDate)
-    .order("start_time", { ascending: true });
+    .order("start_time", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);
   return (data || []) as CalendarEvent[];

@@ -434,6 +434,7 @@ export function CalendarView() {
             onSelectEvent={handleSelectEvent}
             selectable
             popup
+            dayLayoutAlgorithm="no-overlap"
             eventPropGetter={eventPropGetter}
             dayPropGetter={dayPropGetter}
             toolbar={false}
