@@ -177,6 +177,24 @@ export function CalendarView() {
   const { openNewEvent } = useNewEvent();
   const { register: registerRefresh, trigger: triggerRefresh } = useCalendarRefresh();
 
+  const maxStackSize = useMemo(() => {
+    let max = 1;
+    for (let i = 0; i < events.length; i++) {
+      let count = 1;
+      for (let j = 0; j < events.length; j++) {
+        if (i === j) continue;
+        if (events[i].start < events[j].end && events[i].end > events[j].start) {
+          count++;
+        }
+      }
+      if (count > max) max = count;
+    }
+    return max;
+  }, [events]);
+
+  const STACK_ROW_PX = 28;
+  const slotRowHeight = Math.max(48, maxStackSize * STACK_ROW_PX);
+
   const getDateRange = useCallback(() => {
     if (view === Views.MONTH) {
       const monthStart = startOfMonth(date);
@@ -482,8 +500,14 @@ export function CalendarView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div
+          className="flex-1 overflow-hidden"
+          style={
+            { "--rbc-slot-row-height": `${slotRowHeight}px` } as React.CSSProperties
+          }
+        >
           <DnDCalendar
+            key={`cal-${slotRowHeight}`}
             localizer={localizer}
             events={
               showCompleted

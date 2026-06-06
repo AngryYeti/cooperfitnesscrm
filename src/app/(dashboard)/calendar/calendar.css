@@ -198,7 +198,7 @@
 
 .rbc-timeslot-group {
   border-color: var(--border);
-  min-height: 48px;
+  min-height: var(--rbc-slot-row-height, 48px);
 }
 
 .rbc-time-slot:not(.rbc-now) {
