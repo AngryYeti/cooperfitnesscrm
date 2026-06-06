@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
 import {
   Calendar as RBCalendar,
   dateFnsLocalizer,
@@ -192,8 +192,15 @@ export function CalendarView() {
     return max;
   }, [events]);
 
-  const STACK_ROW_PX = 28;
+  const STACK_ROW_PX = 48;
   const slotRowHeight = Math.max(48, maxStackSize * STACK_ROW_PX);
+
+  useLayoutEffect(() => {
+    document.documentElement.style.setProperty(
+      "--rbc-slot-row-height",
+      `${slotRowHeight}px`
+    );
+  }, [slotRowHeight]);
 
   const getDateRange = useCallback(() => {
     if (view === Views.MONTH) {
