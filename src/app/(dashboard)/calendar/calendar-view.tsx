@@ -7,6 +7,7 @@ import {
   Views,
   type View,
   type SlotInfo,
+  type DayLayoutFunction,
 } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import {
@@ -84,6 +85,72 @@ interface RBEvent {
 }
 
 const DnDCalendar = RBCalendar;
+
+const verticalStackLayout: DayLayoutFunction<RBEvent> = ({
+  events,
+  slotMetrics,
+  accessors,
+}) => {
+  const positioned = events.map((event) => {
+    const range = slotMetrics.getRange(
+      accessors.start(event),
+      accessors.end(event)
+    );
+    return {
+      event,
+      startMs: +range.startDate,
+      endMs: +range.endDate,
+      top: range.top,
+      height: range.height,
+    };
+  });
+
+  positioned.sort((a, b) => {
+    if (a.startMs !== b.startMs) return a.startMs - b.startMs;
+    const aCreated = new Date(
+      (a.event.resource as { created_at?: string } | undefined)?.created_at ?? 0
+    ).getTime();
+    const bCreated = new Date(
+      (b.event.resource as { created_at?: string } | undefined)?.created_at ?? 0
+    ).getTime();
+    return aCreated - bCreated;
+  });
+
+  const groups: typeof positioned[] = [];
+  for (const ev of positioned) {
+    const group = groups.find((g) =>
+      g.some((other) => ev.startMs < other.endMs && ev.endMs > other.startMs)
+    );
+    if (group) {
+      group.push(ev);
+    } else {
+      groups.push([ev]);
+    }
+  }
+
+  for (const group of groups) {
+    if (group.length === 1) continue;
+    const minTop = Math.min(...group.map((g) => g.top));
+    const maxBottom = Math.max(...group.map((g) => g.top + g.height));
+    const total = maxBottom - minTop;
+    if (total <= 0) continue;
+    const each = total / group.length;
+    group.forEach((ev, idx) => {
+      ev.top = minTop + idx * each;
+      ev.height = each;
+    });
+  }
+
+  return positioned.map(({ event, top, height }) => ({
+    event,
+    style: {
+      top,
+      height,
+      width: "calc(100% - 4px)",
+      xOffset: 2,
+    },
+  }));
+};
 
 const VIEW_OPTIONS: { value: View; label: string }[] = [
   { value: Views.DAY, label: "Day" },
@@ -434,7 +501,7 @@ export function CalendarView() {
             onSelectEvent={handleSelectEvent}
             selectable
             popup
-            dayLayoutAlgorithm="no-overlap"
+            dayLayoutAlgorithm={verticalStackLayout}
             eventPropGetter={eventPropGetter}
             dayPropGetter={dayPropGetter}
             toolbar={false}
