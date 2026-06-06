@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createUrgentLeadEvent } from "@/lib/urgent-lead-event";
 
 const ALLOWED_ORIGINS = [
   "https://cooper-fitness.vercel.app",
@@ -80,6 +81,14 @@ export async function POST(request: Request) {
         description: `Additional website inquiry received from ${existing.first_name} ${existing.last_name}`,
       });
 
+      const urgentEvent = await createUrgentLeadEvent({
+        supabase,
+        contactId: existing.id,
+        contactName: `${existing.first_name} ${existing.last_name}`,
+        source: "website_inquiry",
+        contextLabel: "Website inquiry",
+      });
+
       console.log("[webhook] merged into existing lead:", existing.id);
       return NextResponse.json(
         {
@@ -87,7 +96,8 @@ export async function POST(request: Request) {
           id: existing.id,
           merged: true,
           note: noteError ? null : noteContent,
-          message: "Lead already exists — added inquiry note.",
+          urgentEventId: urgentEvent?.id ?? null,
+          message: "Lead already exists — added inquiry note and urgent follow-up event.",
         },
         { status: 200, headers }
       );
@@ -124,9 +134,17 @@ export async function POST(request: Request) {
       completed: false,
     });
 
-    console.log("[webhook] created lead:", contact.id);
+    const urgentEvent = await createUrgentLeadEvent({
+      supabase,
+      contactId: contact.id,
+      contactName: `${firstName} ${lastName}`,
+      source: "website_inquiry",
+      contextLabel: "Website inquiry",
+    });
+
+    console.log("[webhook] created lead:", contact.id, "urgent event:", urgentEvent?.id);
     return NextResponse.json(
-      { success: true, id: contact.id },
+      { success: true, id: contact.id, urgentEventId: urgentEvent?.id ?? null },
       { status: 200, headers }
     );
   } catch (err: any) {

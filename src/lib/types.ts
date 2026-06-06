@@ -68,6 +68,14 @@ export interface Activity {
   created_at: string;
 }
 
+export type CalendarEventPriority = "normal" | "urgent";
+export type CalendarEventSource =
+  | "website_inquiry"
+  | "website_purchase"
+  | "manual"
+  | "cal"
+  | "google";
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -81,5 +89,7 @@ export interface CalendarEvent {
   google_event_id: string | null;
   completed: boolean;
   completed_at: string | null;
+  priority: CalendarEventPriority;
+  source: CalendarEventSource | null;
   created_at: string;
 }

@@ -42,6 +42,7 @@ import {
   EyeOff,
   PanelRightClose,
   PanelRightOpen,
+  AlertTriangle,
 } from "lucide-react";
 import {
   getCalendarEvents,
@@ -317,6 +318,7 @@ export function CalendarView() {
     const source = latest?.resource ?? event.resource;
     const baseColor = source?.color || "#3b82f6";
     const isCompleted = !!source?.completed;
+    const isUrgent = source?.priority === "urgent" && !isCompleted;
     const bg = isCompleted ? lightenHex(baseColor, 0.7) : baseColor;
     const textColor = isCompleted ? getReadableTextColor(baseColor) : "#ffffff";
 
@@ -326,10 +328,12 @@ export function CalendarView() {
         borderColor: bg,
         color: textColor,
         borderRadius: "6px",
-        border: "none",
-        boxShadow: isCompleted
-          ? `inset 0 0 0 1px ${lightenHex(baseColor, 0.5)}40, 0 1px 2px ${baseColor}20`
-          : `0 1px 2px ${baseColor}30`,
+        border: isUrgent ? "2px solid #dc2626" : "none",
+        boxShadow: isUrgent
+          ? `0 0 0 2px #dc262640, 0 2px 6px #dc262650`
+          : isCompleted
+            ? `inset 0 0 0 1px ${lightenHex(baseColor, 0.5)}40, 0 1px 2px ${baseColor}20`
+            : `0 1px 2px ${baseColor}30`,
         opacity: isCompleted ? 0.85 : 1,
         textDecoration: isCompleted ? "line-through" : "none",
         textDecorationThickness: "1.5px",
@@ -442,9 +446,18 @@ export function CalendarView() {
                 const contactName = contact
                   ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim()
                   : "";
+                const isUrgent =
+                  event.resource?.priority === "urgent" && !event.resource?.completed;
                 return (
                   <div className="px-1.5 py-0.5 text-[11px] leading-tight min-w-0">
                     <div className="font-medium flex items-center gap-1 min-w-0">
+                      {isUrgent && (
+                        <AlertTriangle
+                          className="h-2.5 w-2.5 shrink-0"
+                          strokeWidth={3}
+                          fill="currentColor"
+                        />
+                      )}
                       {event.resource?.completed && (
                         <Check className="h-2.5 w-2.5 shrink-0" strokeWidth={3} />
                       )}
@@ -623,19 +636,35 @@ export function CalendarView() {
                 }}
               />
               <div className="min-w-0 flex-1">
-                <DialogTitle
-                  className={cn(
-                    "break-words",
-                    selectedEvent?.completed && "line-through"
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle
+                    className={cn(
+                      "break-words",
+                      selectedEvent?.completed && "line-through"
+                    )}
+                  >
+                    {selectedEvent?.title || "Event"}
+                  </DialogTitle>
+                  {selectedEvent?.priority === "urgent" && !selectedEvent.completed && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                      <AlertTriangle className="h-2.5 w-2.5" strokeWidth={3} />
+                      Urgent
+                    </span>
                   )}
-                >
-                  {selectedEvent?.title || "Event"}
-                </DialogTitle>
+                </div>
                 {selectedEvent && (
                   <DialogDescription>
                     {format(
                       new Date(selectedEvent.start_time),
                       "EEEE, MMMM d, yyyy 'at' h:mm a"
+                    )}
+                    {selectedEvent.source && (
+                      <>
+                        {" · "}
+                        <span className="text-muted-foreground">
+                          {selectedEvent.source.replace(/_/g, " ")}
+                        </span>
+                      </>
                     )}
                   </DialogDescription>
                 )}

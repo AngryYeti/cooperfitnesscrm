@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { CalendarEvent } from "@/lib/types";
+import { CalendarEvent, CalendarEventPriority, CalendarEventSource } from "@/lib/types";
 
 export async function getCalendarEvents(startDate: string, endDate: string) {
   const supabase = await createClient();
@@ -26,6 +26,8 @@ export async function createCalendarEvent(event: {
   contact_id?: string | null;
   color?: string;
   google_event_id?: string | null;
+  priority?: CalendarEventPriority;
+  source?: CalendarEventSource | null;
 }) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -39,6 +41,8 @@ export async function createCalendarEvent(event: {
       contact_id: event.contact_id || null,
       color: event.color || "#2563eb",
       google_event_id: event.google_event_id || null,
+      priority: event.priority || "normal",
+      source: event.source || null,
     })
     .select()
     .single();
@@ -75,6 +79,8 @@ export async function updateCalendarEvent(
     contact_id: string | null;
     color: string;
     google_event_id: string | null;
+    priority: CalendarEventPriority;
+    source: CalendarEventSource | null;
   }>
 ) {
   const supabase = await createClient();
