@@ -12,6 +12,7 @@ import { format, parseISO } from "date-fns";
 import { globalSearch } from "@/lib/actions/search";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/layout/search-input";
+import { getFullName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -123,7 +124,7 @@ export default async function SearchPage({
             >
               {results.events.map((e) => {
                 const contactName = e.contacts
-                  ? `${e.contacts.first_name} ${e.contacts.last_name}`.trim()
+                  ? getFullName(e.contacts.first_name, e.contacts.last_name)
                   : null;
                 return (
                   <Link

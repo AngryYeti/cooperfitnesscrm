@@ -104,9 +104,9 @@ git push origin main
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
-   - `GMAIL_USER`
-   - `GMAIL_APP_PASSWORD`
-   - `REMINDER_EMAIL`
+   - `ZOHO_SMTP_USER`
+   - `ZOHO_SMTP_PASSWORD`
+   - `EMAIL_FROM`
    - `CRON_SECRET` (any random string)
 4. Click **Deploy**
 

@@ -20,6 +20,8 @@ export function lightenHex(hex: string, amount = 0.65): string {
   return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`;
 }
 
+export { getFullName } from "./getFullName";
+
 export function getReadableTextColor(hex: string): string {
   const clean = hex.replace("#", "");
   if (clean.length !== 6) return "#ffffff";

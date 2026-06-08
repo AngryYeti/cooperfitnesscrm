@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, BRAND, isEmailConfigured } from "@/lib/email";
+import { getFullName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+const TIMEZONE = process.env.TIMEZONE || "America/New_York";
 
 type DayBounds = { start: Date; end: Date; label: string; iso: { start: string; end: string } };
 
 function getETDayBounds(date: Date = new Date()): DayBounds {
   const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+    timeZone: TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -21,7 +24,7 @@ function getETDayBounds(date: Date = new Date()): DayBounds {
 
   const utcNoon = new Date(Date.UTC(year, month, day, 12, 0, 0));
   const etFmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+    timeZone: TIMEZONE,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -33,7 +36,7 @@ function getETDayBounds(date: Date = new Date()): DayBounds {
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
 
   const label = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+    timeZone: TIMEZONE,
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -50,7 +53,7 @@ function getETDayBounds(date: Date = new Date()): DayBounds {
 
 function formatET(date: Date, withDate = false): string {
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
+    timeZone: TIMEZONE,
     hour: "numeric",
     minute: "2-digit",
     ...(withDate ? { month: "short", day: "numeric" } : {}),
@@ -106,7 +109,7 @@ async function sendDailyCalendar(request: Request) {
 
     const renderEvent = (event: any) => {
       const contactName = event.contacts
-        ? `${event.contacts.first_name} ${event.contacts.last_name}`.trim()
+        ? getFullName(event.contacts.first_name, event.contacts.last_name)
         : "";
       const isAllDay = event.all_day;
       const kind = inferEventKind(event.title);
@@ -221,7 +224,7 @@ async function sendDailyCalendar(request: Request) {
       messageId: result.messageId,
       date: dateStr,
       query: {
-        timezone: "America/New_York",
+        timezone: TIMEZONE,
         start: bounds.iso.start,
         end: bounds.iso.end,
       },
@@ -233,22 +236,31 @@ async function sendDailyCalendar(request: Request) {
         all_day: e.all_day,
         completed: e.completed,
         contact: e.contacts
-          ? `${e.contacts.first_name} ${e.contacts.last_name}`.trim()
+          ? getFullName(e.contacts.first_name, e.contacts.last_name)
           : null,
       })),
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message, stack: err.stack },
+      { error: err.message },
       { status: 500 }
     );
   }
 }
 
 export async function POST(request: Request) {
-  return sendDailyCalendar(request);
-}
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const provided = request.headers.get("x-cron-secret");
+    if (provided !== cronSecret) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+  } else {
+    console.warn("[daily-calendar] CRON_SECRET not configured — allowing unauthenticated request");
+  }
 
-export async function GET(request: Request) {
   return sendDailyCalendar(request);
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, BRAND, isEmailConfigured } from "@/lib/email";
+import { getFullName } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     if (overdue.length > 0) {
       html += `<h3 style="color:#dc2626;">Overdue</h3><ul>`;
       overdue.forEach((fu: any) => {
-        html += `<li><strong>${fu.contacts?.first_name} ${fu.contacts?.last_name}</strong> — ${fu.title} (due ${fu.due_date})</li>`;
+        html += `<li><strong>${getFullName(fu.contacts?.first_name, fu.contacts?.last_name)}</strong> — ${fu.title} (due ${fu.due_date})</li>`;
       });
       html += `</ul>`;
     }
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
     if (dueToday.length > 0) {
       html += `<h3 style="color:#2563eb;">Due Today</h3><ul>`;
       dueToday.forEach((fu: any) => {
-        html += `<li><strong>${fu.contacts?.first_name} ${fu.contacts?.last_name}</strong> — ${fu.title}</li>`;
+        html += `<li><strong>${getFullName(fu.contacts?.first_name, fu.contacts?.last_name)}</strong> — ${fu.title}</li>`;
       });
       html += `</ul>`;
     }
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
     if (upcoming.length > 0) {
       html += `<h3 style="color:#16a34a;">Upcoming</h3><ul>`;
       upcoming.forEach((fu: any) => {
-        html += `<li><strong>${fu.contacts?.first_name} ${fu.contacts?.last_name}</strong> — ${fu.title} (due ${fu.due_date})</li>`;
+        html += `<li><strong>${getFullName(fu.contacts?.first_name, fu.contacts?.last_name)}</strong> — ${fu.title} (due ${fu.due_date})</li>`;
       });
       html += `</ul>`;
     }

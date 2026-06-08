@@ -5,6 +5,16 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const debug = url.searchParams.get("debug") === "1";
 
+  if (debug) {
+    const cronSecret = request.headers.get("x-cron-secret");
+    if (!cronSecret || cronSecret !== process.env.CRON_SECRET) {
+      return NextResponse.json(
+        { error: "Unauthorized — debug requires CRON_SECRET header" },
+        { status: 401 }
+      );
+    }
+  }
+
   const config = getEmailConfig();
   const configured = isEmailConfigured();
   const maskedUser = config.user
@@ -25,16 +35,10 @@ export async function GET(request: Request) {
   };
 
   if (debug) {
-    const rawPass = process.env.ZOHO_SMTP_PASSWORD || "";
     response.debug = {
-      userFull: config.user,
+      configured,
+      host: config.host,
       userLength: config.user?.length || 0,
-      passLength: rawPass.length,
-      passFirst2: rawPass.slice(0, 2),
-      passLast2: rawPass.slice(-2),
-      passHasSpaces: rawPass !== rawPass.trim() || rawPass.includes(" "),
-      passIsQuoted: rawPass.startsWith('"') && rawPass.endsWith('"'),
-      passCharCodes: Array.from(rawPass).map((c) => c.charCodeAt(0)).join(","),
       nodeVersion: process.version,
     };
   }
@@ -108,12 +112,13 @@ export async function POST(request: Request) {
       sentTo: testTo,
       timestamp: new Date().toISOString(),
     });
-  } catch (err: any) {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected error";
     return NextResponse.json(
       {
         ok: false,
         step: "exception",
-        error: err.message,
+        error: message,
       },
       { status: 500 }
     );

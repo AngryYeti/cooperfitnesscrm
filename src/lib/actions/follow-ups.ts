@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { FollowUp } from "@/lib/types";
+import { getFullName } from "@/lib/utils";
 
 export async function getFollowUps() {
   const supabase = await createClient();
@@ -46,7 +47,7 @@ export async function createFollowUp(contactId: string, title: string, dueDate: 
     .single();
 
   const contactName = contact
-    ? `${contact.first_name} ${contact.last_name}`
+    ? getFullName(contact.first_name, contact.last_name)
     : null;
 
   const { error: activityError } = await supabase.from("activities").insert({
@@ -102,7 +103,7 @@ export async function completeFollowUp(id: string, contactId: string) {
   await supabase.from("activities").insert({
     type: "follow_up_completed",
     contact_id: contactId,
-    contact_name: contact ? `${contact.first_name} ${contact.last_name}` : null,
+    contact_name: contact ? getFullName(contact.first_name, contact.last_name) : null,
     description: `Completed follow-up: ${data.title}`,
   });
 

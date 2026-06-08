@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getFullName } from "@/lib/utils";
 
 export async function GET() {
   const supabase = await createClient();
@@ -17,7 +18,7 @@ export async function GET() {
     count: contacts?.length || 0,
     contacts: (contacts || []).map((c: any) => ({
       id: c.id,
-      name: `${c.first_name} ${c.last_name}`.trim(),
+      name: getFullName(c.first_name, c.last_name),
       email: c.email,
     })),
   });

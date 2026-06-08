@@ -1,9 +1,29 @@
+import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
+  const webhookSecret = process.env.DOCUSEAL_WEBHOOK_SECRET;
+  const rawBody = await request.text();
+  let body: Record<string, unknown>;
   try {
-    const body = await request.json();
+    body = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (webhookSecret) {
+    const signature = request.headers.get("x-docuseal-signature");
+    const expected = createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+
+    if (!signature || signature !== expected) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
+    console.warn("[docuseal] DOCUSEAL_WEBHOOK_SECRET not configured — allowing unauthenticated request");
+  }
+
+  try {
 
     const event = body.event as string;
     const submissionId = body.submission_id as number | undefined;
@@ -13,7 +33,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing event" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
+
 
     const subId = submissionId || submission?.id;
     if (!subId) {

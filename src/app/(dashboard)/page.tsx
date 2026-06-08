@@ -15,10 +15,16 @@ import { formatDistanceToNow } from "date-fns";
 import { getDashboardStats, getContacts } from "@/lib/actions/contacts";
 import { getRecentActivities } from "@/lib/actions/activities";
 import { getOverdueFollowUps } from "@/lib/actions/follow-ups";
+import { createClient } from "@/lib/supabase/server";
+import { BRAND } from "@/lib/email";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/layout/search-input";
 
 export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userDisplayName = user?.user_metadata?.name || user?.email?.split("@")[0] || BRAND.name;
+
   const [stats, activities, overdueFollowUps, recentContacts] =
     await Promise.all([
       getDashboardStats(),
@@ -72,7 +78,7 @@ export default async function DashboardPage() {
           <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-[0.95] text-foreground">
             {greeting},
             <br />
-            <span className="text-foreground">Evan.</span>
+            <span className="text-foreground">{userDisplayName}.</span>
           </h1>
           <p className="text-base text-muted-foreground max-w-xl leading-relaxed">
             {subtitle}

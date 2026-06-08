@@ -237,5 +237,5 @@ export async function verifyEmailConnection(): Promise<{
 
 export const BRAND = {
   name: "Cooper Fitness",
-  replyTo: "evan@cooper.fitness",
+  replyTo: process.env.EMAIL_REPLY_TO || "evan@cooper.fitness",
 } as const;

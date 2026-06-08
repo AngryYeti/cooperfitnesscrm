@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { Note } from "@/lib/types";
+import { getFullName } from "@/lib/utils";
 
 export async function getNotesByContactId(contactId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("notes")
-    .select("*")
+    .select("id, contact_id, content, created_at")
     .eq("contact_id", contactId)
     .order("created_at", { ascending: false });
 
@@ -35,8 +36,8 @@ export async function createNote(contactId: string, content: string) {
   await supabase.from("activities").insert({
     type: "note_added",
     contact_id: contactId,
-    contact_name: contact ? `${contact.first_name} ${contact.last_name}` : null,
-    description: `Added a note to ${contact?.first_name} ${contact?.last_name}`,
+    contact_name: contact ? getFullName(contact.first_name, contact.last_name) : null,
+    description: `Added a note to ${getFullName(contact?.first_name, contact?.last_name)}`,
   });
 
   revalidatePath(`/clients/${contactId}`);

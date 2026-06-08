@@ -54,7 +54,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getChecklistTemplates } from "@/lib/actions/checklists";
-import { cn } from "@/lib/utils";
+import { cn, getFullName } from "@/lib/utils";
 
 const statusBadgeMap: Record<string, "lead" | "trial" | "active" | "completed"> = {
   Lead: "lead",
@@ -650,7 +650,7 @@ function EditableNameField({
       title="Click to edit name"
     >
       <h1 className="text-2xl font-bold tracking-tight">
-        {contact.first_name} {contact.last_name}
+        {getFullName(contact.first_name, contact.last_name)}
       </h1>
       <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>

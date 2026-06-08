@@ -7,6 +7,7 @@ import {
   isConfigured as isDocuSealConfigured,
 } from "@/lib/docuseal";
 import { sendEmail, BRAND } from "@/lib/email";
+import { getFullName } from "@/lib/utils";
 
 const FORM_TEMPLATES = [
   { type: "parq", title: "PAR-Q+ Health Questionnaire", required: true },
@@ -54,7 +55,7 @@ export async function createIntakePacket(contactId: string) {
     packet_id: packet.id,
     contact_id: contactId,
     action: "packet_created",
-    details: `Intake packet created for ${contact.first_name} ${contact.last_name}`,
+    details: `Intake packet created for ${getFullName(contact.first_name, contact.last_name)}`,
   });
 
   await supabase
@@ -186,7 +187,7 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
       const { submissionId, embedSrc } = await createSubmissionFromHtml(
         htmlContent,
         f.form_title,
-        `${contact.first_name} ${contact.last_name}`,
+        `${getFullName(contact.first_name, contact.last_name)}`,
         contact.email,
         undefined,
         webhookUrl
@@ -241,7 +242,7 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
     details: `Sent intake link via email`,
   });
 
-  await sendIntakeEmail(contact.email, `${contact.first_name} ${contact.last_name}`, intakeLink);
+  await sendIntakeEmail(contact.email, getFullName(contact.first_name, contact.last_name), intakeLink);
 
   return { method: "link", signingUrl: intakeLink };
 }
@@ -284,7 +285,7 @@ export async function submitForSigning(packetId: string) {
     const { submissionId, embedSrc } = await createSubmissionFromHtml(
       htmlContent,
       f.form_title,
-      `${contact.first_name} ${contact.last_name}`,
+      `${getFullName(contact.first_name, contact.last_name)}`,
       contact.email,
       undefined,
       webhookUrl

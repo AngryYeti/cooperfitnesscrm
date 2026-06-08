@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createUrgentLeadEvent } from "@/lib/urgent-lead-event";
+import { getFullName } from "@/lib/utils";
 
 const ALLOWED_ORIGINS = [
   "https://cooper-fitness.vercel.app",
   "http://localhost:3000",
   "http://localhost:3001",
 ];
+
+const TIMEZONE = process.env.TIMEZONE || "America/New_York";
 
 function corsHeaders(origin: string) {
   const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
@@ -30,9 +33,22 @@ export async function POST(request: Request) {
   console.log("[webhook] received from origin:", origin);
   const headers = corsHeaders(origin);
 
+  const webhookSecret = process.env.WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const provided = request.headers.get("x-webhook-secret");
+    if (provided !== webhookSecret) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers }
+      );
+    }
+  } else {
+    console.warn("[webhook] WEBHOOK_SECRET not configured — allowing unauthenticated request");
+  }
+
   try {
     const body = await request.json();
-    console.log("[webhook] body:", JSON.stringify(body));
+    console.log("[webhook] received");
     const name = body.name?.trim();
     const email = body.email?.trim();
     const goals = body.goals?.trim();
@@ -61,7 +77,7 @@ export async function POST(request: Request) {
         year: "numeric",
         month: "short",
         day: "numeric",
-        timeZone: "America/New_York",
+        timeZone: TIMEZONE,
       });
       const noteContent = `Additional website inquiry (${inquiryDate}) — Goals: ${goals || "(none provided)"}`;
 
@@ -71,25 +87,25 @@ export async function POST(request: Request) {
       });
 
       if (noteError) {
-        console.error("[webhook] failed to add dedupe note:", noteError.message);
+        console.error("[webhook] failed to add dedupe note");
       }
 
       await supabase.from("activities").insert({
         type: "contact_updated",
         contact_id: existing.id,
-        contact_name: `${existing.first_name} ${existing.last_name}`,
-        description: `Additional website inquiry received from ${existing.first_name} ${existing.last_name}`,
+        contact_name: getFullName(existing.first_name, existing.last_name),
+        description: `Additional website inquiry received from ${getFullName(existing.first_name, existing.last_name)}`,
       });
 
       const urgentEvent = await createUrgentLeadEvent({
         supabase,
         contactId: existing.id,
-        contactName: `${existing.first_name} ${existing.last_name}`,
+        contactName: getFullName(existing.first_name, existing.last_name),
         source: "website_inquiry",
         contextLabel: "Website inquiry",
       });
 
-      console.log("[webhook] merged into existing lead:", existing.id);
+      console.log("[webhook] merged into existing lead");
       return NextResponse.json(
         {
           success: true,
@@ -123,8 +139,8 @@ export async function POST(request: Request) {
     await supabase.from("activities").insert({
       type: "contact_created",
       contact_id: contact.id,
-      contact_name: `${firstName} ${lastName}`,
-      description: `Website inquiry from ${firstName} ${lastName}`,
+      contact_name: getFullName(firstName, lastName),
+      description: `Website inquiry from ${getFullName(firstName, lastName)}`,
     });
 
     await supabase.from("follow_ups").insert({
@@ -137,18 +153,18 @@ export async function POST(request: Request) {
     const urgentEvent = await createUrgentLeadEvent({
       supabase,
       contactId: contact.id,
-      contactName: `${firstName} ${lastName}`,
+      contactName: getFullName(firstName, lastName),
       source: "website_inquiry",
       contextLabel: "Website inquiry",
     });
 
-    console.log("[webhook] created lead:", contact.id, "urgent event:", urgentEvent?.id);
+    console.log("[webhook] created lead");
     return NextResponse.json(
       { success: true, id: contact.id, urgentEventId: urgentEvent?.id ?? null },
       { status: 200, headers }
     );
   } catch (err: any) {
-    console.error("[webhook] error:", err.message);
+    console.error("[webhook] processing error");
     return NextResponse.json(
       { error: err.message },
       { status: 500, headers }

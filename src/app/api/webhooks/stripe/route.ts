@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createUrgentLeadEvent } from "@/lib/urgent-lead-event";
+import { getFullName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     const message = err instanceof Error ? err.message : "signature verification failed";
-    console.error("[stripe-webhook] signature verification failed:", message);
+    console.error("[stripe-webhook] signature verification failed");
     return NextResponse.json(
       { error: `Invalid signature: ${message}` },
       { status: 400 }
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, ignored: event.type }, { status: 200 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "handler error";
-    console.error("[stripe-webhook] handler error:", message);
+    console.error("[stripe-webhook] handler error");
     return NextResponse.json(
       { error: message },
       { status: 500 }
@@ -166,7 +167,7 @@ async function handleLeadFromStripe({
 
   if (existing) {
     contactId = existing.id;
-    contactFullName = `${existing.first_name} ${existing.last_name}`;
+    contactFullName = getFullName(existing.first_name, existing.last_name);
     merged = true;
 
     await supabase.from("activities").insert({
@@ -201,7 +202,7 @@ async function handleLeadFromStripe({
 
     if (error) throw new Error(error.message);
     contactId = contact.id;
-    contactFullName = `${firstName} ${lastName}`;
+    contactFullName = getFullName(firstName, lastName);
 
     await supabase.from("activities").insert({
       type: "contact_created",
@@ -222,16 +223,7 @@ async function handleLeadFromStripe({
     amount,
   });
 
-  console.log(
-    "[stripe-webhook] processed purchase",
-    stripeEventId,
-    "contact:",
-    contactId,
-    "urgent event:",
-    urgentEvent?.id,
-    "merged:",
-    merged
-  );
+  console.log("[stripe-webhook] processed purchase");
 
   return {
     contactId,

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Contact, CalendarEvent, FollowUp } from "@/lib/types";
+import { getFullName } from "@/lib/utils";
 
 const SYNONYMS: Record<string, string[]> = {
   wk: ["week", "weekly"],
@@ -128,7 +129,7 @@ export async function globalSearch(rawQuery: string): Promise<SearchResults> {
   const followUps = ((followUpsRes.data as any[]) || []).map((f) => ({
     ...f,
     contact_name: f.contacts
-      ? `${f.contacts.first_name} ${f.contacts.last_name}`.trim()
+      ? getFullName(f.contacts.first_name, f.contacts.last_name)
       : undefined,
     matched_field: detectMatchedField(f, followUpFields, terms),
   }));

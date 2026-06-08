@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { Contact, ContactStatus, Source } from "@/lib/types";
+import { getFullName } from "@/lib/utils";
 
 export async function getContacts(status?: ContactStatus) {
   const supabase = await createClient();
@@ -57,8 +58,8 @@ export async function createContact(contact: {
   await supabase.from("activities").insert({
     type: "contact_created",
     contact_id: data.id,
-    contact_name: `${contact.first_name} ${contact.last_name}`,
-    description: `Added ${contact.first_name} ${contact.last_name} as a ${contact.status}`,
+    contact_name: getFullName(contact.first_name, contact.last_name),
+    description: `Added ${getFullName(contact.first_name, contact.last_name)} as a ${contact.status}`,
   });
 
   revalidatePath("/clients");
@@ -90,15 +91,15 @@ export async function updateContact(
     await supabase.from("activities").insert({
       type: "status_changed",
       contact_id: id,
-      contact_name: `${data.first_name} ${data.last_name}`,
+      contact_name: getFullName(data.first_name, data.last_name),
       description: `Status changed from ${existing.status} to ${updates.status}`,
     });
   } else {
     await supabase.from("activities").insert({
       type: "contact_updated",
       contact_id: id,
-      contact_name: `${data.first_name} ${data.last_name}`,
-      description: `Updated ${data.first_name} ${data.last_name}'s profile`,
+      contact_name: getFullName(data.first_name, data.last_name),
+      description: `Updated ${getFullName(data.first_name, data.last_name)}'s profile`,
     });
   }
 

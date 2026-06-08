@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { CalendarEvent, CalendarEventPriority, CalendarEventSource } from "@/lib/types";
+import { getFullName } from "@/lib/utils";
 
 export async function getCalendarEvents(startDate: string, endDate: string) {
   const supabase = await createClient();
@@ -60,7 +61,7 @@ export async function createCalendarEvent(event: {
     await supabase.from("activities").insert({
       type: "calendar_event_created",
       contact_id: event.contact_id,
-      contact_name: contact ? `${contact.first_name} ${contact.last_name}` : null,
+      contact_name: contact ? getFullName(contact.first_name, contact.last_name) : null,
       description: `Created calendar event: ${event.title}`,
     });
   }
@@ -104,7 +105,7 @@ export async function updateCalendarEvent(
     await supabase.from("activities").insert({
       type: "calendar_event_updated",
       contact_id: event.contact_id,
-      contact_name: contact ? `${contact.first_name} ${contact.last_name}` : null,
+      contact_name: contact ? getFullName(contact.first_name, contact.last_name) : null,
       description: `Updated calendar event: ${event.title || data.title}`,
     });
   }
@@ -177,7 +178,7 @@ export async function toggleEventCompleted(
     await supabase.from("activities").insert({
       type: completed ? "calendar_event_completed" : "calendar_event_uncompleted",
       contact_id: data.contact_id,
-      contact_name: `${contact.first_name} ${contact.last_name}`,
+      contact_name: getFullName(contact.first_name, contact.last_name),
       description: `${completed ? "Completed" : "Reopened"} calendar event: ${data.title}`,
     });
   }

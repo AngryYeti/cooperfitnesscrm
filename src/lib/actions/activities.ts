@@ -7,7 +7,7 @@ export async function getRecentActivities(limit: number = 20) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("activities")
-    .select("*")
+    .select("id, type, contact_id, contact_name, description, created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
 

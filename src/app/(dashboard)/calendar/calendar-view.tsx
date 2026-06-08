@@ -62,7 +62,7 @@ import { Button } from "@/components/ui/button";
 import { EventForm } from "@/components/forms/event-form";
 import { useNewEvent } from "@/components/calendar/new-event-provider";
 import { useCalendarRefresh } from "@/components/calendar/refresh-context";
-import { cn, lightenHex, getReadableTextColor } from "@/lib/utils";
+import { cn, lightenHex, getReadableTextColor, getFullName } from "@/lib/utils";
 import "./calendar.css";
 
 const locales = { "en-US": enUS };
@@ -85,6 +85,9 @@ interface RBEvent {
 }
 
 const DnDCalendar = RBCalendar;
+
+const THIN_EVENT_PX = 20;
+const STACK_GAP_PX = 4;
 
 const verticalStackLayout: DayLayoutFunction<RBEvent> = ({
   events,
@@ -129,15 +132,15 @@ const verticalStackLayout: DayLayoutFunction<RBEvent> = ({
   }
 
   for (const group of groups) {
-    if (group.length === 1) continue;
-    const minTop = Math.min(...group.map((g) => g.top));
-    const maxBottom = Math.max(...group.map((g) => g.top + g.height));
-    const total = maxBottom - minTop;
-    if (total <= 0) continue;
-    const each = total / group.length;
+    const baseTop = Math.min(...group.map((g) => g.top));
+    if (group.length === 1) {
+      group[0].top = baseTop + 2;
+      group[0].height = THIN_EVENT_PX;
+      continue;
+    }
     group.forEach((ev, idx) => {
-      ev.top = minTop + idx * each;
-      ev.height = each;
+      ev.top = baseTop + idx * (THIN_EVENT_PX + STACK_GAP_PX);
+      ev.height = THIN_EVENT_PX;
     });
   }
 
@@ -192,7 +195,7 @@ export function CalendarView() {
     return max;
   }, [events]);
 
-  const STACK_ROW_PX = 48;
+  const STACK_ROW_PX = 36;
   const slotRowHeight = Math.max(48, maxStackSize * STACK_ROW_PX);
 
   useLayoutEffect(() => {
@@ -543,7 +546,7 @@ export function CalendarView() {
               event: ({ event }: { event: RBEvent }) => {
                 const contact = event.resource?.contacts;
                 const contactName = contact
-                  ? `${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim()
+                  ? getFullName(contact.first_name, contact.last_name)
                   : "";
                 const isUrgent =
                   event.resource?.priority === "urgent" && !event.resource?.completed;
@@ -698,7 +701,7 @@ export function CalendarView() {
                         <p className="text-[10px] text-muted-foreground truncate">
                           {format(e.start, "MMM d, h:mm a")}
                           {e.resource?.contacts &&
-                            ` · ${e.resource.contacts.first_name ?? ""} ${e.resource.contacts.last_name ?? ""}`.trim()}
+                            ` · ${getFullName(e.resource.contacts.first_name, e.resource.contacts.last_name)}`}
                         </p>
                       </div>
                       {isCompleted && (

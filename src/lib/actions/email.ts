@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail, BRAND } from "@/lib/email";
+import { getFullName } from "@/lib/utils";
 
 export async function sendBulkEmails(
   contactIds: string[],
@@ -32,7 +33,7 @@ export async function sendBulkEmails(
 
     const firstName = contact.first_name || "";
     const lastName = contact.last_name || "";
-    const fullName = [firstName, lastName].filter(Boolean).join(" ") || firstName || lastName;
+    const fullName = getFullName(firstName, lastName);
 
     const personalizedBody = body
       .replace(/\{\{\s*first_name\s*\}\}/gi, firstName)
@@ -65,7 +66,7 @@ export async function sendBulkEmails(
     if (result.ok) {
       sent++;
     } else {
-      errors.push(`${contact.first_name} ${contact.last_name}: ${result.error}`);
+      errors.push(`${getFullName(contact.first_name, contact.last_name)}: ${result.error}`);
     }
   }
 
