@@ -2,6 +2,15 @@ import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+interface DocusealSubmission {
+  id?: number;
+  name?: string;
+  submitters?: Array<{
+    documents?: Array<{ url?: string }>;
+  }>;
+  documents?: Array<{ url?: string }>;
+}
+
 export async function POST(request: Request) {
   const webhookSecret = process.env.DOCUSEAL_WEBHOOK_SECRET;
   const rawBody = await request.text();
@@ -27,7 +36,7 @@ export async function POST(request: Request) {
 
     const event = body.event as string;
     const submissionId = body.submission_id as number | undefined;
-    const submission = body.submission;
+    const submission = (body.submission || body) as DocusealSubmission;
 
     if (!event) {
       return NextResponse.json({ error: "Missing event" }, { status: 400 });
@@ -59,9 +68,8 @@ export async function POST(request: Request) {
     });
 
     if (event === "submission.completed") {
-      const completedSubmission = submission || body;
-      const submitters = completedSubmission.submitters || [];
-      const documents = completedSubmission.documents || [];
+      const submitters = submission.submitters || [];
+      const documents = submission.documents || [];
 
       const matchingForm = (packet.intake_forms as { id: string; docusign_document_id: string }[]).find(
         (f) => f.docusign_document_id === String(subId)
@@ -79,7 +87,7 @@ export async function POST(request: Request) {
           packet_id: packet.id,
           form_id: matchingForm.id,
           contact_id: packet.contact_id,
-          document_name: completedSubmission.name || "Signed Document",
+          document_name: submission.name || "Signed Document",
           docusign_envelope_id: String(subId),
           pdf_url: docUrl,
           signed_at: new Date().toISOString(),
