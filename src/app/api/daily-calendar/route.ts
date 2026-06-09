@@ -249,17 +249,21 @@ async function sendDailyCalendar(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const isVercelCron = request.headers.get("x-vercel-cron") === "true";
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const provided = request.headers.get("x-cron-secret");
-    if (provided !== cronSecret) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+  const providedSecret = request.headers.get("x-cron-secret");
+
+  if (!isVercelCron) {
+    if (cronSecret) {
+      if (providedSecret !== cronSecret) {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+    } else {
+      console.warn("[daily-calendar] CRON_SECRET not configured — allowing unauthenticated request");
     }
-  } else {
-    console.warn("[daily-calendar] CRON_SECRET not configured — allowing unauthenticated request");
   }
 
   return sendDailyCalendar(request);
