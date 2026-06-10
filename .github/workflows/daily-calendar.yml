@@ -1,0 +1,16 @@
+name: Daily Calendar Email
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  send-daily-calendar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send daily calendar digest
+        run: |
+          curl -s -X POST "${{ secrets.VERCEL_DOMAIN }}/api/daily-calendar" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -o /dev/null -w "%{http_code}" \
+          && echo ""
