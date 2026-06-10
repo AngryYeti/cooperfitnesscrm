@@ -59,6 +59,20 @@ export interface ClientChecklist {
   created_at: string;
 }
 
+export interface Revenue {
+  id: string;
+  stripe_event_id: string;
+  contact_id: string | null;
+  contacts?: { first_name: string; last_name: string; email: string | null } | null;
+  product_name: string;
+  amount_cents: number;
+  currency: string;
+  status: "succeeded" | "refunded" | "pending";
+  source: "checkout.session" | "payment_intent";
+  stripe_created_at: string;
+  created_at: string;
+}
+
 export interface Activity {
   id: string;
   type: "contact_created" | "contact_updated" | "note_added" | "status_changed" | "follow_up_created" | "follow_up_completed";

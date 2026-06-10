@@ -82,8 +82,13 @@ export async function POST(request: Request) {
         email,
         name,
         amount,
+        productName,
         contextLabel: `Website purchase — ${productName}`,
         stripeEventId: event.id,
+        source: "checkout.session",
+        stripeCreatedAt: fullSession.created
+          ? new Date(fullSession.created * 1000).toISOString()
+          : new Date().toISOString(),
       });
 
       return NextResponse.json({ received: true, ...result }, { status: 200 });
@@ -112,8 +117,13 @@ export async function POST(request: Request) {
         email,
         name,
         amount,
+        productName,
         contextLabel: `Website purchase — ${productName}`,
         stripeEventId: event.id,
+        source: "payment_intent",
+        stripeCreatedAt: intent.created
+          ? new Date(intent.created * 1000).toISOString()
+          : new Date().toISOString(),
       });
 
       return NextResponse.json({ received: true, ...result }, { status: 200 });
@@ -134,14 +144,20 @@ async function handleLeadFromStripe({
   email,
   name,
   amount,
+  productName,
   contextLabel,
   stripeEventId,
+  source,
+  stripeCreatedAt,
 }: {
   email: string | null;
   name: string | null;
   amount: number | null;
+  productName: string;
   contextLabel: string;
   stripeEventId: string;
+  source: "checkout.session" | "payment_intent";
+  stripeCreatedAt: string;
 }) {
   if (!email) {
     console.warn("[stripe-webhook]", stripeEventId, "no email on event; skipping");
@@ -222,6 +238,19 @@ async function handleLeadFromStripe({
     contextLabel,
     amount,
   });
+
+  if (amount != null && amount > 0) {
+    await supabase.from("revenue").insert({
+      stripe_event_id: stripeEventId,
+      contact_id: contactId,
+      product_name: productName,
+      amount_cents: Math.round(amount * 100),
+      currency: "usd",
+      status: "succeeded",
+      source,
+      stripe_created_at: stripeCreatedAt,
+    });
+  }
 
   console.log("[stripe-webhook] processed purchase");
 

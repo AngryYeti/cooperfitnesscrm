@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   Settings,
   Sparkles,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const navItems = [
   { name: "Messages", href: "/email", icon: Mail },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
   { name: "Intake", href: "/intake", icon: ClipboardCheck },
+  { name: "Revenue", href: "/revenue", icon: DollarSign },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

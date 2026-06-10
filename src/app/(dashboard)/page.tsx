@@ -15,6 +15,8 @@ import { formatDistanceToNow } from "date-fns";
 import { getDashboardStats, getContacts } from "@/lib/actions/contacts";
 import { getRecentActivities } from "@/lib/actions/activities";
 import { getOverdueFollowUps } from "@/lib/actions/follow-ups";
+import { getRevenueStats, getMonthlyRevenue } from "@/lib/actions/revenue";
+import { SparklineChart } from "@/components/ui/sparkline-chart";
 import { createClient } from "@/lib/supabase/server";
 import { BRAND } from "@/lib/email";
 import { Button } from "@/components/ui/button";
@@ -25,12 +27,14 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const userDisplayName = user?.user_metadata?.name || user?.email?.split("@")[0] || BRAND.name;
 
-  const [stats, activities, overdueFollowUps, recentContacts] =
+  const [stats, activities, overdueFollowUps, recentContacts, revenueStats, monthlyRevenue] =
     await Promise.all([
       getDashboardStats(),
       getRecentActivities(8),
       getOverdueFollowUps(),
       getContacts(),
+      getRevenueStats(),
+      getMonthlyRevenue(6),
     ]);
 
   const topContacts = recentContacts.slice(0, 5);
@@ -206,6 +210,44 @@ export default async function DashboardPage() {
               <p className="text-sm text-muted-foreground mt-2">
                 Past clients
               </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/revenue" className="group sm:col-span-2">
+          <div className="rounded-2xl bg-foreground p-7 text-background shadow-soft transition-transform group-hover:-translate-y-0.5">
+            <div className="flex items-start justify-between mb-4">
+              <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-background/60">
+                Revenue This Month
+              </p>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  revenueStats.monthChange >= 0
+                    ? "bg-trend-up-bg text-trend-up"
+                    : "bg-trend-down-bg text-trend-down"
+                }`}
+              >
+                {revenueStats.monthChange >= 0 ? (
+                  <TrendingUp className="h-2.5 w-2.5" />
+                ) : (
+                  <TrendingDown className="h-2.5 w-2.5" />
+                )}
+                {revenueStats.monthChange >= 0 ? "+" : ""}
+                {revenueStats.monthChange}% vs last month
+              </span>
+            </div>
+            <div className="flex items-end justify-between gap-6">
+              <div>
+                <p className="text-5xl font-bold tracking-tight leading-none">
+                  {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(revenueStats.monthTotal)}
+                </p>
+                <p className="text-sm text-background/60 mt-2">
+                  {revenueStats.transactionCount} total transaction{revenueStats.transactionCount === 1 ? "" : "s"} —                   {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(revenueStats.allTotal)} all time
+                </p>
+              </div>
+              <div className="w-48 h-16 shrink-0 hidden sm:block">
+                <SparklineChart data={monthlyRevenue.map((p) => p.revenue)} />
+              </div>
             </div>
           </div>
         </Link>
