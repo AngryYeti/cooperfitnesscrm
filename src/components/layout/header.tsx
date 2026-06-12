@@ -66,8 +66,9 @@ export function Header() {
   );
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 px-4 sm:px-6 bg-canvas/80 backdrop-blur-md">
-      <Button
+    <div className="pt-4 px-4 sm:px-6 sticky top-0 z-40 w-full">
+      <header className="flex h-16 items-center gap-3 px-4 sm:px-6 rounded-2xl bg-canvas/80 backdrop-blur-xl border border-border/40 shadow-floating transition-all duration-300">
+        <Button
         variant="ghost"
         size="icon"
         className="lg:hidden"
@@ -190,5 +191,6 @@ export function Header() {
         </div>
       )}
     </header>
+    </div>
   );
 }
