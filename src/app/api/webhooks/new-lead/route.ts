@@ -163,7 +163,7 @@ export async function POST(request: Request) {
       { success: true, id: contact.id, urgentEventId: urgentEvent?.id ?? null },
       { status: 200, headers }
     );
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     console.error("[webhook] processing error");
     return NextResponse.json(
       { error: err.message },

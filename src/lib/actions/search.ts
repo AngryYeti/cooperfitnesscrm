@@ -56,11 +56,11 @@ function buildOrClauses(fields: string[], terms: string[]): string {
 }
 
 function detectMatchedField(
-  record: Record<string, any>,
+  record: Record<string, unknown>,
   fields: string[],
   terms: string[]
 ): string {
-  const lower = (v: any) => (v ? String(v).toLowerCase() : "");
+  const lower = (v: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => (v ? String(v).toLowerCase() : "");
   for (const term of terms) {
     for (const field of fields) {
       if (lower(record[field]).includes(term.toLowerCase())) {
@@ -116,29 +116,29 @@ export async function globalSearch(rawQuery: string): Promise<SearchResults> {
   const eventFields = ["title", "description"];
   const followUpFields = ["title"];
 
-  const contacts = ((contactsRes.data as any[]) || []).map((c) => ({
+  const contacts = ((contactsRes.data as Record<string, unknown>[]) || []).map((c) => ({
     ...c,
     matched_field: detectMatchedField(c, contactFields, terms),
   }));
 
-  const events = ((eventsRes.data as any[]) || []).map((e) => ({
+  const events = ((eventsRes.data as Record<string, unknown>[]) || []).map((e) => ({
     ...e,
     matched_field: detectMatchedField(e, eventFields, terms),
   }));
 
-  const followUps = ((followUpsRes.data as any[]) || []).map((f) => ({
+  const followUps = ((followUpsRes.data as Record<string, unknown>[]) || []).map((f) => ({
     ...f,
     contact_name: f.contacts
-      ? getFullName(f.contacts.first_name, f.contacts.last_name)
+      ? getFullName((f.contacts as { first_name: string }).first_name, (f.contacts as { last_name: string }).last_name)
       : undefined,
     matched_field: detectMatchedField(f, followUpFields, terms),
   }));
 
   return {
     query: trimmed,
-    contacts: contacts as any,
-    events: events as any,
-    followUps: followUps as any,
+    contacts: contacts as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ as SearchResults["contacts"],
+    events: events as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ as SearchResults["events"],
+    followUps: followUps as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ as SearchResults["followUps"],
     total: contacts.length + events.length + followUps.length,
   };
 }

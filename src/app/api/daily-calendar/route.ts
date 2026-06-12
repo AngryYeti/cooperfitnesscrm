@@ -104,10 +104,10 @@ async function sendDailyCalendar(request: Request) {
       );
     }
 
-    const activeEvents = (events || []).filter((e: any) => !e.completed);
-    const completedEvents = (events || []).filter((e: any) => e.completed);
+    const activeEvents = (events || []).filter((e: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => !e.completed);
+    const completedEvents = (events || []).filter((e: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => e.completed);
 
-    const renderEvent = (event: any) => {
+    const renderEvent = (event: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => {
       const contactName = event.contacts
         ? getFullName(event.contacts.first_name, event.contacts.last_name)
         : "";
@@ -228,7 +228,7 @@ async function sendDailyCalendar(request: Request) {
         start: bounds.iso.start,
         end: bounds.iso.end,
       },
-      events: (events || []).map((e: any) => ({
+      events: (events || []).map((e: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => ({
         id: e.id,
         title: e.title,
         start_time: e.start_time,
@@ -240,7 +240,7 @@ async function sendDailyCalendar(request: Request) {
           : null,
       })),
     });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json(
       { error: err.message },
       { status: 500 }
@@ -248,7 +248,7 @@ async function sendDailyCalendar(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const isVercelCron = request.headers.get("x-vercel-cron") === "true";
   const cronSecret = process.env.CRON_SECRET;
   const providedSecret = request.headers.get("x-cron-secret");

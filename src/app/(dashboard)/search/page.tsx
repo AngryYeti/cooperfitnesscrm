@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { globalSearch } from "@/lib/actions/search";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/layout/search-input";
 import { getFullName } from "@/lib/utils";
 
@@ -51,7 +50,7 @@ export default async function SearchPage({
             />
           </div>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Try searching for a name, a goal like "consult" or "weekly", or
+            Try searching for a name, a goal like &quot;consult&quot; or &quot;weekly&quot;, or
             any event title.
           </p>
         </div>
@@ -59,7 +58,7 @@ export default async function SearchPage({
 
       {q && results && results.total === 0 && (
         <div className="rounded-2xl bg-card border border-border/60 p-12 text-center shadow-soft">
-          <p className="text-base font-medium">No results for "{q}"</p>
+          <p className="text-base font-medium">No results for &quot;{q}&quot;</p>
           <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
             Try a shorter or different term. Searches match contacts by name,
             email, or phone, plus event and follow-up titles.

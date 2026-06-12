@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -49,15 +49,17 @@ function SearchInputInner({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [value, setValue] = useState(searchParams.get("q") || "");
+  const queryQ = searchParams.get("q") || "";
+  const targetValue = pathname !== "/search" ? "" : queryQ;
+  const [value, setValue] = useState(targetValue);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  const [prevSearch, setPrevSearch] = useState(queryQ);
 
-  useEffect(() => {
-    if (pathname !== "/search") {
-      setValue("");
-    } else {
-      setValue(searchParams.get("q") || "");
-    }
-  }, [pathname, searchParams]);
+  if (pathname !== prevPathname || queryQ !== prevSearch) {
+    setPrevPathname(pathname);
+    setPrevSearch(queryQ);
+    setValue(targetValue);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

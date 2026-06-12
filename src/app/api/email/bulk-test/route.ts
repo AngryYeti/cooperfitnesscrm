@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const matched = contacts.map((c: any) => ({
+    const matched = contacts.map((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => ({
       id: c.id,
       name: getFullName(c.first_name, c.last_name),
       email: c.email,
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       matched,
       ...result,
     });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

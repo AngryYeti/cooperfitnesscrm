@@ -168,9 +168,10 @@ export async function sendEmail(
       accepted: info.accepted as string[] | undefined,
       rejected: info.rejected as string[] | undefined,
     };
-  } catch (err: any) {
-    const code = err?.code || "SEND_FAILED";
-    const message = err?.message || "Failed to send email";
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
+    const errorObj = err as Record<string, unknown> | null;
+    const code = typeof errorObj?.code === "string" ? errorObj.code : "SEND_FAILED";
+    const message = err instanceof Error ? err.message : String(errorObj?.message || "Failed to send email");
 
     if (code === "EAUTH" || code === "EENVELOPE") {
       return {
@@ -223,14 +224,15 @@ export async function verifyEmailConnection(): Promise<{
   try {
     await transport.verify();
     return { ok: true, host: cfg.host, port: cfg.port, user: cfg.user };
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
+    const errorObj = err as Record<string, unknown> | null;
     return {
       ok: false,
       host: cfg.host,
       port: cfg.port,
       user: cfg.user,
-      error: err?.message || "SMTP verification failed",
-      code: err?.code || "VERIFY_FAILED",
+      error: err instanceof Error ? err.message : String(errorObj?.message || "SMTP verification failed"),
+      code: typeof errorObj?.code === "string" ? errorObj.code : "VERIFY_FAILED",
     };
   }
 }

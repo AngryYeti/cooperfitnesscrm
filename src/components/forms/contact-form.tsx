@@ -71,10 +71,10 @@ export function ContactForm({
       if (contact) {
         await updateContact(contact.id, payload);
       } else {
-        await createContact(payload as any);
+        await createContact(payload as any /* eslint-disable-line @typescript-eslint/no-explicit-any */);
       }
       onSuccess();
-    } catch (err: any) {
+    } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);

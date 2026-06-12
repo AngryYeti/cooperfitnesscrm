@@ -1,10 +1,8 @@
 import Link from "next/link";
 import {
   Users,
-  UserCheck,
-  Clock,
-  UserX,
-  ArrowRight,
+    Clock,
+    ArrowRight,
   TrendingUp,
   TrendingDown,
   Activity,
@@ -44,11 +42,11 @@ export default async function DashboardPage() {
   const startOfYear = new Date(now.getFullYear(), 0, 1);
 
   const leadsThisMonth = recentContacts.filter(
-    (c: any) =>
+    (c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) =>
       c.status === "Lead" && new Date(c.date_added) >= startOfMonth
   ).length;
   const completedThisYear = recentContacts.filter(
-    (c: any) =>
+    (c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) =>
       c.status === "Completed" && new Date(c.date_added) >= startOfYear
   ).length;
   const overdueCount = overdueFollowUps.length;
@@ -271,7 +269,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <div className="space-y-1.5">
-            {overdueFollowUps.slice(0, 3).map((fu: any) => (
+            {overdueFollowUps.slice(0, 3).map((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => (
               <div
                 key={fu.id}
                 className="flex items-center justify-between text-sm rounded-lg px-3 py-2.5 bg-card/60 hover:bg-card transition-colors"

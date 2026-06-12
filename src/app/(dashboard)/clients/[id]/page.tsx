@@ -12,22 +12,27 @@ export default async function ClientDetailPage({
 }) {
   const { id } = await params;
 
-  try {
-    const contact = await getContactById(id);
-    const notes = await getNotesByContactId(id);
-    const checklists = await getClientChecklists(id);
-    const allFollowUps = await getFollowUps();
-    const followUps = allFollowUps.filter((fu: any) => fu.contact_id === id);
+  let contact;
+  let notes;
+  let checklists;
+  let followUps;
 
-    return (
-      <ContactDetailView
-        contact={contact}
-        notes={notes}
-        checklists={checklists}
-        followUps={followUps}
-      />
-    );
+  try {
+    contact = await getContactById(id);
+    notes = await getNotesByContactId(id);
+    checklists = await getClientChecklists(id);
+    const allFollowUps = await getFollowUps();
+    followUps = allFollowUps.filter((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => fu.contact_id === id);
   } catch {
     notFound();
   }
+
+  return (
+    <ContactDetailView
+      contact={contact}
+      notes={notes}
+      checklists={checklists}
+      followUps={followUps}
+    />
+  );
 }

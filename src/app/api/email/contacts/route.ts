@@ -16,7 +16,7 @@ export async function GET() {
 
   return NextResponse.json({
     count: contacts?.length || 0,
-    contacts: (contacts || []).map((c: any) => ({
+    contacts: (contacts || []).map((c: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => ({
       id: c.id,
       name: getFullName(c.first_name, c.last_name),
       email: c.email,

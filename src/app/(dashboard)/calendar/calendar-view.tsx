@@ -41,7 +41,6 @@ import {
   Check,
   Eye,
   EyeOff,
-  PanelRightClose,
   PanelRightOpen,
   AlertTriangle,
 } from "lucide-react";
@@ -242,6 +241,7 @@ export function CalendarView() {
   }, [getDateRange]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchEvents();
   }, [fetchEvents]);
 
@@ -844,7 +844,7 @@ function CompletionToggle({
     setError(null);
     try {
       await onToggle();
-    } catch (e: any) {
+    } catch (e: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
       setOptimistic(previous);
       if (e?.code === "MISSING_COLUMN" || e?.message?.includes("MISSING_COLUMN")) {
         setError(

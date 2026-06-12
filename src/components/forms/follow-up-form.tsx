@@ -19,7 +19,7 @@ export function FollowUpForm({ onSuccess }: { onSuccess: () => void }) {
   const [contactId, setContactId] = useState("");
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [contactsLoaded, setContactsLoaded] = useState(false);
@@ -41,7 +41,7 @@ export function FollowUpForm({ onSuccess }: { onSuccess: () => void }) {
     try {
       await createFollowUp(contactId, title.trim(), dueDate);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);

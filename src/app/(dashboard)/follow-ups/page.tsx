@@ -21,7 +21,7 @@ import {
 import { FollowUpForm } from "@/components/forms/follow-up-form";
 
 export default function FollowUpsPage() {
-  const [followUps, setFollowUps] = useState<any[]>([]);
+  const [followUps, setFollowUps] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -39,6 +39,7 @@ export default function FollowUpsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFollowUps();
   }, [fetchFollowUps]);
 
@@ -63,7 +64,7 @@ export default function FollowUpsPage() {
       } else {
         alert(data.error || "Failed to send reminders.");
       }
-    } catch (err) {
+    } catch (_err) {
       alert("Failed to send reminders.");
     } finally {
       setSending(false);

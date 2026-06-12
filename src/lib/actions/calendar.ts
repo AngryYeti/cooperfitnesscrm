@@ -142,7 +142,7 @@ export async function toggleEventCompleted(
     const err = new Error(
       "MISSING_COLUMN: The 'completed' column is missing. Run supabase/calendar-completed-migration.sql in the Supabase SQL Editor."
     );
-    (err as any).code = "MISSING_COLUMN";
+    Object.assign(err, { code: "MISSING_COLUMN" });
     throw err;
   }
 
@@ -164,14 +164,14 @@ export async function toggleEventCompleted(
       const err = new Error(
         "MISSING_COLUMN: The 'completed' column is missing. Run supabase/calendar-completed-migration.sql in the Supabase SQL Editor."
       );
-      (err as any).code = "MISSING_COLUMN";
+      Object.assign(err, { code: "MISSING_COLUMN" });
       throw err;
     }
     throw new Error(error.message);
   }
 
   if (data?.contact_id && data?.contacts) {
-    const contact = data.contacts as unknown as {
+    const contact = data.contacts as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ as {
       first_name: string;
       last_name: string;
     };

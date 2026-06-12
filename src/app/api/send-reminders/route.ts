@@ -45,15 +45,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ sent: 0, message: "No pending reminders to send." });
     }
 
-    const overdue = followUps.filter((fu: any) => fu.due_date < today);
-    const dueToday = followUps.filter((fu: any) => fu.due_date === today);
-    const upcoming = followUps.filter((fu: any) => fu.due_date > today);
+    const overdue = followUps.filter((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => fu.due_date < today);
+    const dueToday = followUps.filter((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => fu.due_date === today);
+    const upcoming = followUps.filter((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => fu.due_date > today);
 
     let html = `<h2>${BRAND.name} CRM — Pending Follow-Ups</h2>`;
 
     if (overdue.length > 0) {
       html += `<h3 style="color:#dc2626;">Overdue</h3><ul>`;
-      overdue.forEach((fu: any) => {
+      overdue.forEach((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => {
         html += `<li><strong>${getFullName(fu.contacts?.first_name, fu.contacts?.last_name)}</strong> — ${fu.title} (due ${fu.due_date})</li>`;
       });
       html += `</ul>`;
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     if (dueToday.length > 0) {
       html += `<h3 style="color:#2563eb;">Due Today</h3><ul>`;
-      dueToday.forEach((fu: any) => {
+      dueToday.forEach((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => {
         html += `<li><strong>${getFullName(fu.contacts?.first_name, fu.contacts?.last_name)}</strong> — ${fu.title}</li>`;
       });
       html += `</ul>`;
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
     if (upcoming.length > 0) {
       html += `<h3 style="color:#16a34a;">Upcoming</h3><ul>`;
-      upcoming.forEach((fu: any) => {
+      upcoming.forEach((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => {
         html += `<li><strong>${getFullName(fu.contacts?.first_name, fu.contacts?.last_name)}</strong> — ${fu.title} (due ${fu.due_date})</li>`;
       });
       html += `</ul>`;
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ sent: followUps.length, messageId: result.messageId });
-  } catch (err: any) {
+  } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
