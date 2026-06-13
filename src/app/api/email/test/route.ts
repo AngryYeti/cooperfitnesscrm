@@ -6,8 +6,10 @@ export async function GET(request: Request) {
   const debug = url.searchParams.get("debug") === "1";
 
   if (debug) {
-    const cronSecret = request.headers.get("x-cron-secret");
-    if (!cronSecret || cronSecret !== process.env.CRON_SECRET) {
+    const authHeader = request.headers.get("authorization");
+    const bearerSecret = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    const providedSecret = bearerSecret || request.headers.get("x-cron-secret");
+    if (!providedSecret || providedSecret !== process.env.CRON_SECRET) {
       return NextResponse.json(
         { error: "Unauthorized — debug requires CRON_SECRET header" },
         { status: 401 }

@@ -5,8 +5,10 @@ import { getFullName } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
-    const cronSecret = request.headers.get("x-cron-secret");
-    if (cronSecret !== process.env.CRON_SECRET) {
+    const authHeader = request.headers.get("authorization");
+    const bearerSecret = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    const providedSecret = bearerSecret || request.headers.get("x-cron-secret");
+    if (providedSecret !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

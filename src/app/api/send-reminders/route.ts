@@ -13,8 +13,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const cronSecret = request.headers.get("x-cron-secret");
-    const isCron = cronSecret === process.env.CRON_SECRET;
+    const authHeader = request.headers.get("authorization");
+    const bearerSecret = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    const providedSecret = bearerSecret || request.headers.get("x-cron-secret");
+    const isCron = providedSecret === process.env.CRON_SECRET;
 
     const supabase = isCron ? createAdminClient() : await createClient();
     let toEmail: string | undefined;
