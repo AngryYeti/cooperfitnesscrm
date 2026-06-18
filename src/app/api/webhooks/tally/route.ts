@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const payload = await request.json();
 
     // Only process form submissions
-    if (payload.eventType !== "FORM_SUBMISSION") {
+    if (payload.eventType !== "FORM_SUBMISSION" && payload.eventType !== "FORM_RESPONSE") {
       return NextResponse.json({ message: "Ignored event type" }, { status: 200 });
     }
 
