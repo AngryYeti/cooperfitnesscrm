@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     console.error("Tally webhook error:", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unknown error occurred" }, 
-      { status: 500 }
+      { status: 200 } // Returning 200 so Tally displays the body instead of hiding it!
     );
   }
 }
