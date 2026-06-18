@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Copy } from "lucide-react";
 import {
   getPacketById,
   sendIntakePacket,
@@ -42,6 +44,7 @@ export default function IntakeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -80,6 +83,14 @@ export default function IntakeDetailPage() {
     if (confirm("Are you sure you want to delete this packet?")) {
       await deletePacket(id);
       router.push("/intake");
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (packet?.signing_url) {
+      navigator.clipboard.writeText(packet.signing_url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -182,12 +193,23 @@ export default function IntakeDetailPage() {
               ? "The client has submitted the Tally.so intake form."
               : "Send the email invite to deliver the personalized Tally form link to the client."}
           </p>
+
+          {packet.signing_url && (
+            <div className="flex items-center gap-2 mt-2">
+              <Input value={packet.signing_url} readOnly className="h-8 text-xs font-mono" />
+              <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" onClick={handleCopyLink}>
+                {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+          )}
           
           <div className="flex gap-2 mt-4">
-            {packet.status === "draft" && (
+            {(packet.status === "draft" || packet.status === "sent") && (
               <Button onClick={handleSend} disabled={sending} className="shadow-soft">
                 <Send className="mr-2 h-4 w-4" />
-                {sending ? "Sending..." : "Send Email Invite"}
+                {packet.status === "sent" 
+                  ? (sending ? "Resending..." : "Resend Email Invite") 
+                  : (sending ? "Sending..." : "Send Email Invite")}
               </Button>
             )}
             

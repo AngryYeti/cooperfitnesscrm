@@ -127,7 +127,10 @@ export async function sendIntakePacket(packetId: string) {
     details: `Sent Tally intake link via email`,
   });
 
-  await sendIntakeEmail(contact.email, getFullName(contact.first_name, contact.last_name), intakeLink);
+  const emailResult = await sendIntakeEmail(contact.email, getFullName(contact.first_name, contact.last_name), intakeLink);
+  if (!emailResult.ok) {
+    throw new Error(`Failed to send email: ${emailResult.error}`);
+  }
 
   revalidatePath("/intake");
   return { method: "tally", signingUrl: intakeLink };
@@ -205,7 +208,7 @@ async function sendIntakeEmail(
   clientName: string,
   intakeLink: string
 ) {
-  await sendEmail({
+  return await sendEmail({
     to: toEmail,
     subject: `${BRAND.name} - Complete Your Intake Forms`,
     html: `
