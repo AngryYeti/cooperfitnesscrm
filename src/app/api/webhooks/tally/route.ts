@@ -36,6 +36,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, message: "Intake marked as complete" }, { status: 200 });
   } catch (err) {
     console.error("Tally webhook error:", err);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Unknown error occurred" }, 
+      { status: 500 }
+    );
   }
 }
