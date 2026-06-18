@@ -230,7 +230,7 @@ export function IntakeDashboard() {
                       {packet.status === "completed" && (
                         <div className="flex items-center text-emerald-600 text-sm font-medium mr-1">
                           <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                          Done
+                          Completed
                         </div>
                       )}
                       
