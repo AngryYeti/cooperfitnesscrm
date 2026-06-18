@@ -193,7 +193,7 @@ export default function IntakeDetailPage() {
             
             {packet.status === "completed" && packet.tally_submission_id && (
               <a 
-                href={\`https://tally.so/workspace/\${process.env.NEXT_PUBLIC_TALLY_FORM_URL?.split('/')[4] || ''}/submissions\`} 
+                href={`https://tally.so/workspace/${process.env.NEXT_PUBLIC_TALLY_FORM_URL?.split('/')[4] || ''}/submissions`} 
                 target="_blank" 
                 rel="noreferrer"
               >
