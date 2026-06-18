@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, BRAND } from "@/lib/email";
 import { getFullName } from "@/lib/utils";
 
@@ -136,8 +137,8 @@ export async function sendIntakePacket(packetId: string) {
   return { method: "tally", signingUrl: intakeLink };
 }
 
-export async function markPacketComplete(packetId: string, submissionId?: string) {
-  const supabase = await createClient();
+export async function markPacketComplete(packetId: string, submissionId?: string, useAdmin = false) {
+  const supabase = useAdmin ? createAdminClient() : await createClient();
 
   const { data: packet } = await supabase
     .from("intake_packets")

@@ -27,9 +27,12 @@ export async function POST(request: Request) {
     }
 
     const submissionId = payload.data?.submissionId;
+    console.log(`[Tally Webhook] Found packet ID: ${packetId}, Submission ID: ${submissionId}`);
 
-    await markPacketComplete(packetId, submissionId);
+    // Pass `true` as the third argument to use the Admin client (bypass RLS)
+    await markPacketComplete(packetId, submissionId, true);
 
+    console.log(`[Tally Webhook] Successfully marked packet ${packetId} as complete`);
     return NextResponse.json({ success: true, message: "Intake marked as complete" }, { status: 200 });
   } catch (err) {
     console.error("Tally webhook error:", err);
