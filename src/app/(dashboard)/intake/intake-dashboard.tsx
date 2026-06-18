@@ -78,6 +78,7 @@ export function IntakeDashboard() {
   const [selectedContact, setSelectedContact] = useState("");
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
+  const [sendErrors, setSendErrors] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -117,18 +118,20 @@ export function IntakeDashboard() {
 
   const handleSend = async (packetId: string) => {
     setSending(packetId);
+    setSendErrors((prev) => ({ ...prev, [packetId]: "" }));
     try {
       const res = await fetch("/api/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          packetId,
-          returnUrl: window.location.origin,
-        }),
+        body: JSON.stringify({ packetId }),
       });
-      if (res.ok) {
-        fetchData();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send");
       }
+      fetchData();
+    } catch (err) {
+      setSendErrors((prev) => ({ ...prev, [packetId]: err instanceof Error ? err.message : "Failed to send" }));
     } finally {
       setSending(null);
     }
@@ -216,8 +219,29 @@ export function IntakeDashboard() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {packet.status === "draft" && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {sendErrors[packet.id] && (
+                        <div className="flex items-center text-xs text-destructive mr-1 max-w-[150px] truncate" title={sendErrors[packet.id]}>
+                          <AlertCircle className="h-3.5 w-3.5 mr-1 shrink-0" />
+                          <span className="truncate">Failed</span>
+                        </div>
+                      )}
+                      
+                      {packet.status === "completed" && (
+                        <div className="flex items-center text-emerald-600 text-sm font-medium mr-1">
+                          <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                          Done
+                        </div>
+                      )}
+                      
+                      {packet.status === "sent" && !sendErrors[packet.id] && (
+                        <div className="flex items-center text-amber-500 text-sm font-medium mr-1">
+                          <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                          Sent
+                        </div>
+                      )}
+
+                      {(packet.status === "draft" || packet.status === "sent") && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -226,7 +250,9 @@ export function IntakeDashboard() {
                           className="shadow-soft"
                         >
                           <Send className="mr-1.5 h-3 w-3" />
-                          {sending === packet.id ? "Sending..." : "Send"}
+                          {sending === packet.id 
+                            ? "Sending..." 
+                            : packet.status === "sent" ? "Resend" : "Send"}
                         </Button>
                       )}
                       
@@ -237,7 +263,7 @@ export function IntakeDashboard() {
                           rel="noreferrer"
                         >
                           <Button size="sm" variant="outline">
-                            View Submission
+                            Submission
                             <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
                           </Button>
                         </a>
