@@ -2,25 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import {
-  createSubmissionFromHtml,
-  isConfigured as isDocuSealConfigured,
-} from "@/lib/docuseal";
 import { sendEmail, BRAND } from "@/lib/email";
 import { getFullName } from "@/lib/utils";
-
-const FORM_TEMPLATES = [
-  { type: "parq", title: "PAR-Q+ Health Questionnaire", required: true },
-  { type: "consent", title: "Informed Consent Form", required: true },
-  { type: "liability", title: "Liability Waiver & Release", required: true },
-  { type: "agreement", title: "Coaching Agreement", required: true },
-  { type: "goals", title: "Goal & Lifestyle Assessment", required: true },
-  { type: "nutrition", title: "Nutrition Questionnaire", required: true },
-  { type: "progress", title: "Progress & Baseline Assessment", required: true },
-  { type: "emergency", title: "Emergency Contact Form", required: true },
-  { type: "media", title: "Media Release Consent", required: false },
-  { type: "privacy", title: "Privacy Policy & Data Consent", required: true },
-];
 
 export async function createIntakePacket(contactId: string) {
   const supabase = await createClient();
@@ -40,16 +23,6 @@ export async function createIntakePacket(contactId: string) {
     .single();
 
   if (packetErr || !packet) throw new Error(packetErr?.message || "Failed to create packet");
-
-  const forms = FORM_TEMPLATES.map((t) => ({
-    packet_id: packet.id,
-    form_type: t.type,
-    form_title: t.title,
-    status: "pending",
-  }));
-
-  const { error: formsErr } = await supabase.from("intake_forms").insert(forms);
-  if (formsErr) throw new Error(formsErr.message);
 
   await supabase.from("intake_audit").insert({
     packet_id: packet.id,
@@ -72,7 +45,7 @@ export async function getContactPackets(contactId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("intake_packets")
-    .select("*, intake_forms(*)")
+    .select("*")
     .eq("contact_id", contactId)
     .order("created_at", { ascending: false });
 
@@ -84,7 +57,7 @@ export async function getAllPackets() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("intake_packets")
-    .select("*, contacts(first_name, last_name, email, intake_status), intake_forms(*)")
+    .select("*, contacts(first_name, last_name, email, intake_status)")
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -95,7 +68,7 @@ export async function getPacketById(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("intake_packets")
-    .select("*, contacts(first_name, last_name, email, intake_status), intake_forms(*)")
+    .select("*, contacts(first_name, last_name, email, intake_status)")
     .eq("id", id)
     .single();
 
@@ -107,7 +80,7 @@ export async function getPacketByToken(token: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("intake_packets")
-    .select("*, contacts(first_name, last_name, email), intake_forms(*)")
+    .select("*, contacts(first_name, last_name, email)")
     .eq("access_token", token)
     .single();
 
@@ -115,54 +88,12 @@ export async function getPacketByToken(token: string) {
   return data;
 }
 
-export async function saveFormData(
-  formId: string,
-  formData: Record<string, unknown>
-) {
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("intake_forms")
-    .update({ form_data: formData, status: "filled" })
-    .eq("id", formId);
-
-  if (error) throw new Error(error.message);
-
-  const { data: form } = await supabase
-    .from("intake_forms")
-    .select("packet_id")
-    .eq("id", formId)
-    .single();
-
-  if (form) {
-    await supabase
-      .from("intake_packets")
-      .update({ status: "in_progress", updated_at: new Date().toISOString() })
-      .eq("id", form.packet_id);
-
-    const { data: packet } = await supabase
-      .from("intake_packets")
-      .select("contact_id")
-      .eq("id", form.packet_id)
-      .single();
-
-    if (packet) {
-      await supabase
-        .from("contacts")
-        .update({ intake_status: "forms_pending" })
-        .eq("id", packet.contact_id);
-    }
-  }
-
-  revalidatePath("/intake");
-}
-
-export async function sendIntakePacket(packetId: string, returnUrl: string) {
+export async function sendIntakePacket(packetId: string) {
   const supabase = await createClient();
 
   const { data: packet, error } = await supabase
     .from("intake_packets")
-    .select("*, contacts(first_name, last_name, email), intake_forms(*)")
+    .select("*, contacts(first_name, last_name, email)")
     .eq("id", packetId)
     .single();
 
@@ -171,59 +102,13 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
   const contact = packet.contacts as { first_name: string; last_name: string; email: string };
   if (!contact.email) throw new Error("Contact has no email address");
 
-  const filledForms = (packet.intake_forms as { id: string; form_type: string; form_title: string; form_data: Record<string, unknown>; status: string }[]).filter(
-    (f) => f.status === "filled"
-  );
-
-  if (isDocuSealConfigured() && filledForms.length > 0) {
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_DOMAIN || "https://cooper-fitness.vercel.app"}/api/webhooks/docuseal`;
-
-    const submissionIds: number[] = [];
-    let lastEmbedSrc = "";
-
-    for (const f of filledForms) {
-      const htmlContent = generateFormHtml(f.form_title, f.form_data as Record<string, string>);
-
-      const { submissionId, embedSrc } = await createSubmissionFromHtml(
-        htmlContent,
-        f.form_title,
-        `${getFullName(contact.first_name, contact.last_name)}`,
-        contact.email,
-        undefined,
-        webhookUrl
-      );
-
-      submissionIds.push(submissionId);
-      if (embedSrc) lastEmbedSrc = embedSrc;
-
-      await supabase
-        .from("intake_forms")
-        .update({ docusign_document_id: String(submissionId) })
-        .eq("id", f.id);
-    }
-
-    await supabase
-      .from("intake_packets")
-      .update({
-        status: "sent",
-        docusign_envelope_id: submissionIds.join(","),
-        signing_url: lastEmbedSrc,
-        sent_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", packetId);
-
-    await supabase.from("intake_audit").insert({
-      packet_id: packetId,
-      contact_id: packet.contact_id,
-      action: "packet_sent_docuseal",
-      details: `Sent via DocuSeal. Submissions: ${submissionIds.join(", ")}`,
-    });
-
-    return { method: "docuseal", signingUrl: lastEmbedSrc, submissionIds };
+  const tallyUrl = process.env.NEXT_PUBLIC_TALLY_FORM_URL;
+  if (!tallyUrl) {
+    throw new Error("Tally form URL is not configured. Please add NEXT_PUBLIC_TALLY_FORM_URL to your environment variables.");
   }
 
-  const intakeLink = `${returnUrl}/onboarding/${packet.access_token}`;
+  // Construct the Tally URL with the hidden field `packet_id`
+  const intakeLink = `${tallyUrl}?packet_id=${packet.id}`;
 
   await supabase
     .from("intake_packets")
@@ -238,90 +123,17 @@ export async function sendIntakePacket(packetId: string, returnUrl: string) {
   await supabase.from("intake_audit").insert({
     packet_id: packetId,
     contact_id: packet.contact_id,
-    action: "packet_sent_link",
-    details: `Sent intake link via email`,
+    action: "packet_sent_tally",
+    details: `Sent Tally intake link via email`,
   });
 
   await sendIntakeEmail(contact.email, getFullName(contact.first_name, contact.last_name), intakeLink);
 
-  return { method: "link", signingUrl: intakeLink };
+  revalidatePath("/intake");
+  return { method: "tally", signingUrl: intakeLink };
 }
 
-export async function submitForSigning(packetId: string) {
-  const supabase = await createClient();
-
-  const { data: packet, error } = await supabase
-    .from("intake_packets")
-    .select("*, contacts(first_name, last_name, email), intake_forms(*)")
-    .eq("id", packetId)
-    .single();
-
-  if (error || !packet) throw new Error("Packet not found");
-
-  const contact = packet.contacts as { first_name: string; last_name: string; email: string };
-  if (!contact.email) throw new Error("Contact has no email address");
-
-  const filledForms = (packet.intake_forms as { id: string; form_type: string; form_title: string; form_data: Record<string, unknown>; status: string }[]).filter(
-    (f) => f.status === "filled"
-  );
-
-  if (filledForms.length === 0) {
-    throw new Error("No forms have been filled out yet");
-  }
-
-  if (!isDocuSealConfigured()) {
-    await markPacketComplete(packetId);
-    return { method: "manual", signingUrl: null };
-  }
-
-  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_DOMAIN || "https://cooper-fitness.vercel.app"}/api/webhooks/docuseal`;
-
-  const submissionIds: number[] = [];
-  let lastEmbedSrc = "";
-
-  for (const f of filledForms) {
-    const htmlContent = generateFormHtml(f.form_title, f.form_data as Record<string, string>);
-
-    const { submissionId, embedSrc } = await createSubmissionFromHtml(
-      htmlContent,
-      f.form_title,
-      `${getFullName(contact.first_name, contact.last_name)}`,
-      contact.email,
-      undefined,
-      webhookUrl
-    );
-
-    submissionIds.push(submissionId);
-    if (embedSrc) lastEmbedSrc = embedSrc;
-
-    await supabase
-      .from("intake_forms")
-      .update({ docusign_document_id: String(submissionId) })
-      .eq("id", f.id);
-  }
-
-  await supabase
-    .from("intake_packets")
-    .update({
-      status: "sent",
-      docusign_envelope_id: submissionIds.join(","),
-      signing_url: lastEmbedSrc,
-      sent_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", packetId);
-
-  await supabase.from("intake_audit").insert({
-    packet_id: packetId,
-    contact_id: packet.contact_id,
-    action: "submitted_for_signing",
-    details: `DocuSeal submissions: ${submissionIds.join(", ")}`,
-  });
-
-  return { method: "docuseal", signingUrl: lastEmbedSrc, submissionIds };
-}
-
-export async function markPacketComplete(packetId: string) {
+export async function markPacketComplete(packetId: string, submissionId?: string) {
   const supabase = await createClient();
 
   const { data: packet } = await supabase
@@ -330,77 +142,37 @@ export async function markPacketComplete(packetId: string) {
     .eq("id", packetId)
     .single();
 
+  if (!packet) throw new Error("Packet not found");
+
+  const updateData: Record<string, unknown> = {
+    status: "completed",
+    completed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (submissionId) {
+    updateData.tally_submission_id = submissionId;
+  }
+
   await supabase
     .from("intake_packets")
-    .update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", packetId);
 
   await supabase
-    .from("intake_forms")
-    .update({ status: "signed" })
-    .eq("packet_id", packetId)
-    .eq("status", "filled");
+    .from("contacts")
+    .update({ intake_status: "completed" })
+    .eq("id", packet.contact_id);
 
-  if (packet) {
-    await supabase
-      .from("contacts")
-      .update({ intake_status: "signed" })
-      .eq("id", packet.contact_id);
-
-    await supabase.from("intake_audit").insert({
-      packet_id: packetId,
-      contact_id: packet.contact_id,
-      action: "packet_completed",
-      details: "All forms signed and completed",
-    });
-  }
-
-  revalidatePath("/intake");
-  revalidatePath(`/clients/${packet?.contact_id}`);
-}
-
-export async function storeSignedDocument(
-  packetId: string,
-  formId: string,
-  contactId: string,
-  documentName: string,
-  envelopeId: string,
-  documentId: string,
-  pdfBase64: string
-) {
-  const supabase = await createClient();
-
-  await supabase.from("intake_documents").insert({
+  await supabase.from("intake_audit").insert({
     packet_id: packetId,
-    form_id: formId,
-    contact_id: contactId,
-    document_name: documentName,
-    docusign_envelope_id: envelopeId,
-    docusign_document_id: documentId,
-    pdf_data: pdfBase64,
-    signed_at: new Date().toISOString(),
+    contact_id: packet.contact_id,
+    action: "packet_completed",
+    details: `Tally form submitted successfully${submissionId ? ` (Submission ID: ${submissionId})` : ''}`,
   });
 
-  await supabase
-    .from("intake_forms")
-    .update({ status: "signed", signed_at: new Date().toISOString() })
-    .eq("id", formId);
-}
-
-export async function getPacketDocuments(packetId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("intake_documents")
-    .select("*")
-    .eq("packet_id", packetId)
-    .order("created_at", { ascending: true });
-
-  if (error) throw new Error(error.message);
-  return data || [];
+  revalidatePath("/intake");
+  revalidatePath(`/clients/${packet.contact_id}`);
 }
 
 export async function updateContactIntakeStatus(
@@ -426,40 +198,6 @@ export async function deletePacket(packetId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/intake");
-}
-
-function generateFormHtml(
-  title: string,
-  formData: Record<string, string>
-): string {
-  const rows = Object.entries(formData)
-    .map(
-      ([key, value]) => `
-      <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:600;width:40%;color:#333;">${key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #eee;color:#555;">${value || "—"}</td>
-      </tr>`
-    )
-    .join("");
-
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>${title}</title></head>
-<body style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#333;">
-  <div style="text-align:center;margin-bottom:30px;">
-    <h1 style="color:#171717;margin-bottom:5px;">Cooper Fitness</h1>
-    <h2 style="color:#555;font-weight:400;margin-top:0;">${title}</h2>
-  </div>
-  <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-    ${rows}
-  </table>
-  <div style="margin-top:40px;border-top:2px solid #eee;padding-top:20px;">
-    <p style="font-size:14px;color:#666;">Signature: {{Signature;type=signature}}</p>
-    <p style="font-size:14px;color:#666;">Date: {{Date Signed;type=date}}</p>
-  </div>
-  <p style="font-size:11px;color:#999;margin-top:30px;text-align:center;">Generated by Cooper Fitness CRM</p>
-</body>
-</html>`;
 }
 
 async function sendIntakeEmail(

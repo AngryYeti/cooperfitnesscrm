@@ -12,6 +12,7 @@ import {
   FileText,
   UserPlus,
   Inbox,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ const INTAKE_STATUS_LABELS: Record<string, string> = {
   started: "Intake Started",
   forms_pending: "Forms Pending",
   signed: "Signed",
+  completed: "Completed",
   ready_for_onboarding: "Ready for Onboarding",
 };
 
@@ -63,11 +65,11 @@ export function IntakeDashboard() {
       status: string;
       access_token: string;
       signing_url: string | null;
+      tally_submission_id: string | null;
       created_at: string;
       sent_at: string | null;
       completed_at: string | null;
       contacts: { first_name: string; last_name: string; email: string; intake_status: string };
-      intake_forms: { id: string; form_type: string; form_title: string; status: string }[];
     }[]
   >([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -137,18 +139,13 @@ export function IntakeDashboard() {
     fetchData();
   };
 
-  const getFormProgress = (forms: { status: string }[]) => {
-    const filled = forms.filter((f) => f.status !== "pending").length;
-    return { filled, total: forms.length };
-  };
-
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Client Intake</h1>
           <p className="text-muted-foreground mt-1">
-            Manage client onboarding forms and e-signatures
+            Manage client onboarding forms and e-signatures via Tally.so
           </p>
         </div>
         <Button onClick={() => setShowCreate(true)} className="shadow-soft">
@@ -189,8 +186,7 @@ export function IntakeDashboard() {
             const intakeStatus =
               INTAKE_STATUS_LABELS[packet.contacts?.intake_status] ||
               packet.contacts?.intake_status;
-            const progress = getFormProgress(packet.intake_forms);
-            const pct = progress.total > 0 ? (progress.filled / progress.total) * 100 : 0;
+              
             return (
               <Card
                 key={packet.id}
@@ -201,7 +197,7 @@ export function IntakeDashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <Link
-                          href={`/intake/${packet.id}`}
+                          href={`/clients/${packet.contact_id}`}
                           className="font-semibold hover:underline decoration-foreground/30 underline-offset-2 truncate"
                         >
                           {packet.contacts?.first_name} {packet.contacts?.last_name}
@@ -212,19 +208,6 @@ export function IntakeDashboard() {
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3 mt-2">
-                        <div className="flex-1 max-w-[200px]">
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">
-                              Forms {progress.filled}/{progress.total}
-                            </span>
-                          </div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-foreground rounded-full transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-3">
                           <span>Created {new Date(packet.created_at).toLocaleDateString()}</span>
                           {intakeStatus && (
@@ -246,12 +229,27 @@ export function IntakeDashboard() {
                           {sending === packet.id ? "Sending..." : "Send"}
                         </Button>
                       )}
-                      <Link href={`/intake/${packet.id}`}>
+                      
+                      {packet.status === "completed" && packet.tally_submission_id && (
+                        <a 
+                          href={`https://tally.so/workspace/${process.env.NEXT_PUBLIC_TALLY_FORM_URL?.split('/')[4] || ''}/submissions`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                        >
+                          <Button size="sm" variant="outline">
+                            View Submission
+                            <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                          </Button>
+                        </a>
+                      )}
+                      
+                      <Link href={`/clients/${packet.contact_id}`}>
                         <Button size="sm" variant="ghost">
-                          Open
+                          View Client
                           <ChevronRight className="ml-0.5 h-3.5 w-3.5" />
                         </Button>
                       </Link>
+                      
                       <Button
                         size="icon"
                         variant="ghost"
