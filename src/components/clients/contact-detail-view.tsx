@@ -15,7 +15,9 @@ import {
   ListChecks,
   Clock,
   Check,
+  MoreVertical,
   Plus,
+  Send,
   Loader2,
   Pencil,
 } from "lucide-react";
@@ -32,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -84,9 +87,15 @@ export function ContactDetailView({
   const [notes, setNotes] = useState(initialNotes);
   const [checklists, setChecklists] = useState(initialChecklists);
   const [followUps, setFollowUps] = useState(initialFollowUps);
-  const [communications] = useState(initialCommunications || []);
+  const [communications, setCommunications] = useState(initialCommunications || []);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  
+  // Email Reply State
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replySubject, setReplySubject] = useState("");
+  const [replyBody, setReplyBody] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
 
   const [followUpTitle, setFollowUpTitle] = useState("");
   const [followUpDate, setFollowUpDate] = useState("");
@@ -111,10 +120,54 @@ export function ContactDetailView({
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
     setAddingNote(true);
-    const note = await createNote(contact.id, newNote.trim());
-    setNotes([note, ...notes]);
-    setNewNote("");
-    setAddingNote(false);
+    try {
+      const note = await createNote(contact.id, newNote.trim());
+      setNotes([note, ...notes]);
+      setNewNote("");
+      setAddingNote(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!replySubject.trim() || !replyBody.trim()) return;
+    
+    setSendingReply(true);
+    try {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact_id: contact.id,
+          subject: replySubject,
+          body_text: replyBody,
+        }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to send reply");
+      
+      // Optimistically add to UI
+      const newComm: Communication = {
+        id: crypto.randomUUID(),
+        contact_id: contact.id,
+        direction: "outbound",
+        sender_email: "You",
+        subject: replySubject,
+        body_text: replyBody,
+        date_received: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      };
+      setCommunications([newComm, ...communications]);
+      setReplyingTo(null);
+      setReplySubject("");
+      setReplyBody("");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send email");
+    } finally {
+      setSendingReply(false);
+    }
   };
 
   const handleDeleteNote = async (id: string) => {
@@ -365,15 +418,76 @@ export function ContactDetailView({
                         </div>
                         <p className="text-sm font-medium">{email.subject}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(email.date_received), "MMM d, h:mm a")}
-                      </p>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={email.direction === "inbound" ? "secondary" : "outline"} className="text-[10px]">
+                          {email.direction}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(email.date_received), "MMM d, h:mm a")}
+                        </p>
+                      </div>
                     </div>
-                    <div className="pl-8">
-                      <p className="text-xs text-muted-foreground mb-2">From: {email.sender_email}</p>
+                    <div className="pl-8 pt-1">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {email.direction === "inbound" ? `From: ${email.sender_email}` : `To: ${contact.email}`}
+                      </p>
                       <div className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground bg-muted/30 p-3 rounded-md border border-border/50">
                         {email.body_text}
                       </div>
+                      
+                      {/* Reply Button (Only show on the first/most recent email, or if they click it) */}
+                      {email.direction === "inbound" && (
+                        <div className="mt-3">
+                          {replyingTo === email.id ? (
+                            <div className="space-y-3 mt-4 animate-fade-up bg-card border rounded-lg p-4 shadow-sm">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium flex items-center gap-2">
+                                  <Send className="h-3 w-3" /> Send Reply
+                                </h4>
+                                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs">Subject</Label>
+                                <Input 
+                                  value={replySubject} 
+                                  onChange={e => setReplySubject(e.target.value)} 
+                                  placeholder="Re: ..." 
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs">Message</Label>
+                                <Textarea 
+                                  value={replyBody} 
+                                  onChange={e => setReplyBody(e.target.value)} 
+                                  placeholder="Write your reply..." 
+                                  className="min-h-[100px] text-sm"
+                                />
+                              </div>
+                              <Button 
+                                size="sm" 
+                                className="w-full" 
+                                onClick={handleSendReply}
+                                disabled={sendingReply || !replySubject.trim() || !replyBody.trim()}
+                              >
+                                {sendingReply ? "Sending..." : "Send Email"}
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs h-8"
+                              onClick={() => {
+                                setReplyingTo(email.id);
+                                setReplySubject(email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`);
+                              }}
+                            >
+                              <Send className="mr-2 h-3 w-3" /> Reply
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

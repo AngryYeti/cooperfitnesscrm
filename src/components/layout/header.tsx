@@ -37,7 +37,7 @@ const navItems = [
   { name: "Overview", href: "/", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Calendar", href: "/calendar", icon: CalendarDays },
-  { name: "Messages", href: "/email", icon: Mail },
+  { name: "Email", href: "/email", icon: Mail },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
   { name: "Intake", href: "/intake", icon: ClipboardCheck },
   { name: "Settings", href: "/settings", icon: Settings },

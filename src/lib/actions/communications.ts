@@ -13,3 +13,21 @@ export async function getClientCommunications(contactId: string) {
   if (error) throw new Error(error.message);
   return data || [];
 }
+
+export async function getAllCommunications() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("client_communications")
+    .select(`
+      *,
+      contacts (
+        first_name,
+        last_name,
+        email
+      )
+    `)
+    .order("date_received", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
