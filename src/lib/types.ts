@@ -59,6 +59,17 @@ export interface ClientChecklist {
   created_at: string;
 }
 
+export interface Communication {
+  id: string;
+  contact_id: string;
+  direction: "inbound" | "outbound";
+  subject: string;
+  body_text: string;
+  sender_email: string | null;
+  date_received: string;
+  created_at: string;
+}
+
 export interface Revenue {
   id: string;
   stripe_event_id: string;
@@ -75,7 +86,7 @@ export interface Revenue {
 
 export interface Activity {
   id: string;
-  type: "contact_created" | "contact_updated" | "note_added" | "status_changed" | "follow_up_created" | "follow_up_completed";
+  type: "contact_created" | "contact_updated" | "note_added" | "status_changed" | "follow_up_created" | "follow_up_completed" | "email_received";
   contact_id: string | null;
   contact_name: string | null;
   description: string;
