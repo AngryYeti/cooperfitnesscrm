@@ -113,6 +113,16 @@ export default function LoginPage() {
                 {loading ? "Sending Code..." : "Send Login Code"}
                 {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-xs text-muted-foreground mt-2"
+                onClick={() => setStep("code")}
+                disabled={loading}
+              >
+                I already have a code
+              </Button>
             </form>
           ) : (
             <form onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
