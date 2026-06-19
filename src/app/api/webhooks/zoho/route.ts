@@ -5,21 +5,25 @@ export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") || "";
     let sender_email, subject, text_body;
+    let debugInfo: any = {};
 
     if (contentType.includes("application/x-www-form-urlencoded")) {
-      const formData = await req.formData();
-      sender_email = formData.get("sender_email") as string;
-      subject = formData.get("subject") as string;
-      text_body = formData.get("text_body") as string;
+      const rawText = await req.text();
+      const params = new URLSearchParams(rawText);
+      sender_email = params.get("sender_email")?.trim();
+      subject = params.get("subject");
+      text_body = params.get("text_body");
+      debugInfo = { rawText, parsedKeys: Array.from(params.keys()) };
     } else {
       const payload = await req.json();
-      sender_email = payload.sender_email;
+      sender_email = payload.sender_email?.trim();
       subject = payload.subject;
       text_body = payload.text_body;
+      debugInfo = { payload };
     }
 
     if (!sender_email) {
-      return NextResponse.json({ error: "Missing sender_email" }, { status: 400 });
+      return NextResponse.json({ error: "Missing sender_email", debug: debugInfo, contentType }, { status: 400 });
     }
 
     // Initialize admin client to bypass RLS for webhook processing
