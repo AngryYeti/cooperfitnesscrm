@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, BRAND } from "@/lib/email";
 import { getFullName } from "@/lib/utils";
 
@@ -135,48 +134,6 @@ export async function sendIntakePacket(packetId: string) {
 
   revalidatePath("/intake");
   return { method: "tally", signingUrl: intakeLink };
-}
-
-export async function markPacketComplete(packetId: string, submissionId?: string, useAdmin = false) {
-  const supabase = useAdmin ? createAdminClient() : await createClient();
-
-  const { data: packet } = await supabase
-    .from("intake_packets")
-    .select("contact_id")
-    .eq("id", packetId)
-    .single();
-
-  if (!packet) throw new Error("Packet not found");
-
-  const updateData: Record<string, unknown> = {
-    status: "completed",
-    completed_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  if (submissionId) {
-    updateData.tally_submission_id = submissionId;
-  }
-
-  await supabase
-    .from("intake_packets")
-    .update(updateData)
-    .eq("id", packetId);
-
-  await supabase
-    .from("contacts")
-    .update({ intake_status: "completed" })
-    .eq("id", packet.contact_id);
-
-  await supabase.from("intake_audit").insert({
-    packet_id: packetId,
-    contact_id: packet.contact_id,
-    action: "packet_completed",
-    details: `Tally form submitted successfully${submissionId ? ` (Submission ID: ${submissionId})` : ''}`,
-  });
-
-  revalidatePath("/intake");
-  revalidatePath(`/clients/${packet.contact_id}`);
 }
 
 export async function updateContactIntakeStatus(

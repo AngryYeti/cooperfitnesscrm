@@ -227,13 +227,6 @@ export function IntakeDashboard() {
                         </div>
                       )}
                       
-                      {packet.status === "completed" && (
-                        <div className="flex items-center text-emerald-600 text-sm font-medium mr-1">
-                          <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                          Completed
-                        </div>
-                      )}
-                      
                       {packet.status === "sent" && !sendErrors[packet.id] && (
                         <div className="flex items-center text-emerald-600 text-sm font-medium mr-1">
                           <CheckCircle2 className="h-4 w-4 mr-1.5" />
@@ -254,19 +247,6 @@ export function IntakeDashboard() {
                             ? "Sending..." 
                             : packet.status === "sent" ? "Resend" : "Send"}
                         </Button>
-                      )}
-                      
-                      {packet.status === "completed" && packet.tally_submission_id && (
-                        <a 
-                          href={`https://tally.so/workspace/${process.env.NEXT_PUBLIC_TALLY_FORM_URL?.split('/')[4] || ''}/submissions`} 
-                          target="_blank" 
-                          rel="noreferrer"
-                        >
-                          <Button size="sm" variant="outline">
-                            Submission
-                            <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-                          </Button>
-                        </a>
                       )}
                       
                       <Link href={`/clients/${packet.contact_id}`}>
