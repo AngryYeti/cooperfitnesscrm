@@ -12,6 +12,388 @@ import {
   Target,
   Trash2,
   
+  ListChecks,
+  Clock,
+  Check,
+  Plus,
+  Loader2,
+  Pencil,
+} from "lucide-react";
+import { Contact, Note, ClientChecklist, Communication } from "@/lib/types";
+import { format } from "date-fns";
+import { createNote, deleteNote } from "@/lib/actions/notes";
+import {
+  assignChecklist,
+  toggleChecklistItem,
+} from "@/lib/actions/checklists";
+import { createFollowUp, completeFollowUp } from "@/lib/actions/follow-ups";
+import { updateContact } from "@/lib/actions/contacts";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  
+  
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { getChecklistTemplates } from "@/lib/actions/checklists";
+import { cn, getFullName } from "@/lib/utils";
+
+const _statusBadgeMap: Record<string, "lead" | "trial" | "active" | "completed"> = {
+  Lead: "lead",
+  Trial: "trial",
+  "Active Client": "active",
+  Completed: "completed",
+};
+
+const statusOptions = ["Lead", "Trial", "Active Client", "Completed"];
+
+export function ContactDetailView({
+  contact: initialContact,
+  notes: initialNotes,
+  checklists: initialChecklists,
+  followUps: initialFollowUps,
+  communications: initialCommunications,
+}: {
+  contact: Contact;
+  notes: Note[];
+  checklists: ClientChecklist[];
+  followUps: any /* eslint-disable-line @typescript-eslint/no-explicit-any */[];
+  communications?: Communication[];
+}) {
+  const router = useRouter();
+  const [contact, setContact] = useState(initialContact);
+  const [isPending, startTransition] = useTransition();
+  const [notes, setNotes] = useState(initialNotes);
+  const [checklists, setChecklists] = useState(initialChecklists);
+  const [followUps, setFollowUps] = useState(initialFollowUps);
+  const [communications] = useState(initialCommunications || []);
+  const [newNote, setNewNote] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+
+  const [followUpTitle, setFollowUpTitle] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
+
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const saveField = (patch: Partial<Contact>) => {
+    const previous = contact;
+    setContact({ ...contact, ...patch });
+    startTransition(async () => {
+      try {
+        await updateContact(contact.id, patch);
+        router.refresh();
+      } catch {
+        setContact(previous);
+      }
+    });
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    setAddingNote(true);
+    const note = await createNote(contact.id, newNote.trim());
+    setNotes([note, ...notes]);
+    setNewNote("");
+    setAddingNote(false);
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    await deleteNote(id, contact.id);
+    setNotes(notes.filter((n) => n.id !== id));
+  };
+
+  const handleAddFollowUp = async () => {
+    if (!followUpTitle.trim() || !followUpDate) return;
+    await createFollowUp(contact.id, followUpTitle.trim(), followUpDate);
+    setIsFollowUpOpen(false);
+    setFollowUpTitle("");
+    setFollowUpDate("");
+  };
+
+  const handleCompleteFollowUp = async (id: string) => {
+    await completeFollowUp(id, contact.id);
+    setFollowUps(followUps.map((fu) => (fu.id === id ? { ...fu, completed: true } : fu)));
+  };
+
+  const handleToggleChecklist = async (
+    checklistId: string,
+    itemIndex: number,
+    completed: boolean
+  ) => {
+    await toggleChecklistItem(checklistId, itemIndex, completed, contact.id);
+    setChecklists(
+      checklists.map((cl) => {
+        if (cl.id !== checklistId) return cl;
+        const items = [...cl.items];
+        items[itemIndex] = {
+          ...items[itemIndex],
+          completed,
+          completed_at: completed ? new Date().toISOString() : null,
+        };
+        return { ...cl, items };
+      })
+    );
+  };
+
+  const openAssignDialog = async () => {
+    const data = await getChecklistTemplates();
+    setTemplates(data);
+    setIsAssignOpen(true);
+  };
+
+  const handleAssignTemplate = async (templateId: string) => {
+    await assignChecklist(contact.id, templateId);
+    setIsAssignOpen(false);
+    window.location.reload();
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    saveField({ status: newStatus as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ });
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-up">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link
+          href="/clients"
+          className="hover:text-foreground flex items-center gap-1 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Clients
+        </Link>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-soft flex items-center justify-center text-lg font-semibold shrink-0">
+            {contact.first_name[0]}
+            {contact.last_name?.[0] || ""}
+          </div>
+          <div>
+            <EditableNameField
+              contact={contact}
+              saving={isPending}
+              onSave={(first, last) =>
+                saveField({ first_name: first, last_name: last })
+              }
+            />
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <Select value={contact.status} onValueChange={handleStatusChange}>
+                <SelectTrigger className="h-7 px-2.5 text-xs font-medium border-border/60">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {contact.source && (
+                <span className="text-xs text-muted-foreground">
+                  via {contact.source}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setIsFollowUpOpen(true)}
+          className="shadow-soft"
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          Follow-Up
+        </Button>
+      </div>
+
+      <Card className="shadow-soft">
+        <CardContent className="p-5 grid gap-5 sm:grid-cols-2">
+          <EditableInfoRow
+            icon={<Mail className="h-4 w-4" />}
+            label="Email"
+            value={contact.email || ""}
+            placeholder="Add email"
+            type="email"
+            saving={isPending}
+            onSave={(v) => saveField({ email: v || null })}
+          />
+          <EditableInfoRow
+            icon={<Phone className="h-4 w-4" />}
+            label="Phone"
+            value={contact.phone || ""}
+            placeholder="Add phone"
+            type="tel"
+            saving={isPending}
+            onSave={(v) => saveField({ phone: v || null })}
+          />
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Calendar className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Date Added</p>
+              <p className="text-sm font-medium">
+                {format(new Date(contact.date_added), "MMM d, yyyy")}
+              </p>
+            </div>
+          </div>
+          <EditableInfoRow
+            icon={<Target className="h-4 w-4" />}
+            label="Fitness Goal"
+            value={contact.fitness_goal || ""}
+            placeholder="Add fitness goal"
+            multiline
+            saving={isPending}
+            onSave={(v) => saveField({ fitness_goal: v || null })}
+          />
+          {contact.tags && contact.tags.length > 0 && (
+            <div className="flex items-start gap-3 sm:col-span-2">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Tag className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Tags</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {contact.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="notes" className="w-full">
+        <TabsList className="bg-muted/40">
+          <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="emails">Emails</TabsTrigger>
+          <TabsTrigger value="checklists">Checklists</TabsTrigger>
+          <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="notes" className="space-y-3 mt-4">
+          <div className="flex gap-2">
+            <Textarea
+              placeholder="Add a note..."
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              rows={2}
+              className="resize-none"
+            />
+            <Button
+              size="icon"
+              className="shrink-0 self-end h-9 w-9 shadow-soft"
+              disabled={addingNote || !newNote.trim()}
+              onClick={handleAddNote}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {notes.map((note) => (
+              <Card key={note.id} className="border-border/60 shadow-soft">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-relaxed">{note.content}</p>
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        {format(new Date(note.created_at), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive shrink-0"
+                      onClick={() => handleDeleteNote(note.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {notes.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No notes yet. Add your first note above.
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="emails" className="space-y-3 mt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Email History</h3>
+            <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">Powered by Zoho</span>
+          </div>
+          <div className="space-y-2">
+            {(communications || []).map((email) => (
+              <Card key={email.id} className="border-border/60 shadow-soft">
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center">
+                          <Mail className="h-3 w-3" />
+                        </div>
+                        <p className="text-sm font-medium">{email.subject}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(email.date_received), "MMM d, h:mm a")}
+                      </p>
+                    </div>
+                    <div className="pl-8">
+                      <p className="text-xs text-muted-foreground mb-2">From: {email.sender_email}</p>
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground bg-muted/30 p-3 rounded-md border border-border/50">
+                        {email.body_text}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {(!communications || communications.length === 0) && (
+              <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No emails synced yet. Incoming emails will appear here automatically.
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="checklists" className="space-y-3 mt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Workflow Checklists</h3>
+            <Button size="sm" variant="outline" onClick={openAssignDialog} className="shadow-soft">
+              <ListChecks className="mr-2 h-4 w-4" />
               Assign Template
             </Button>
           </div>
