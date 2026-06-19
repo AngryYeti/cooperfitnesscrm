@@ -235,9 +235,9 @@ export function IntakeDashboard() {
                       )}
                       
                       {packet.status === "sent" && !sendErrors[packet.id] && (
-                        <div className="flex items-center text-amber-500 text-sm font-medium mr-1">
+                        <div className="flex items-center text-emerald-600 text-sm font-medium mr-1">
                           <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                          Sent
+                          Sent {packet.sent_at && <span className="ml-1.5 text-xs text-emerald-600/70 font-normal">({new Date(packet.sent_at).toLocaleDateString()})</span>}
                         </div>
                       )}
 
