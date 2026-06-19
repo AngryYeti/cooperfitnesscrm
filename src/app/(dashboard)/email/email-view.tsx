@@ -14,6 +14,7 @@ import { getContacts } from "@/lib/actions/contacts";
 import { sendBulkEmails } from "@/lib/actions/email";
 import { getAllCommunications } from "@/lib/actions/communications";
 import { format } from "date-fns";
+import { groupCommunicationsIntoThreads } from "@/lib/utils";
 import type { Contact, ContactStatus, Communication } from "@/lib/types";
 
 const STATUSES: ContactStatus[] = [
@@ -181,40 +182,59 @@ export function EmailView() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {communications.map((email: any) => (
-                    <div key={email.id} className={`p-4 rounded-lg border shadow-sm ${email.direction === "inbound" ? "bg-card" : "bg-muted/10"}`}>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`h-6 w-6 rounded flex items-center justify-center ${email.direction === "inbound" ? "bg-primary/10" : "bg-muted-foreground/10"}`}>
-                              {email.direction === "inbound" ? <Mail className="h-3 w-3" /> : <Send className="h-3 w-3" />}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{email.subject}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {email.direction === "inbound" ? "From: " : "To: "}
-                                {email.contacts?.first_name} {email.contacts?.last_name} ({email.contacts?.email})
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge variant={email.direction === "inbound" ? "secondary" : "outline"} className="text-[10px]">
-                              {email.direction}
-                            </Badge>
-                            <p className="text-[11px] text-muted-foreground">
-                              {format(new Date(email.date_received), "MMM d, h:mm a")}
-                            </p>
-                          </div>
+                <div className="space-y-4">
+                  {groupCommunicationsIntoThreads(communications).map((thread) => {
+                    const latestEmail = thread[thread.length - 1] as any;
+                    return (
+                      <Card key={latestEmail.id} className="border-border/60 shadow-soft overflow-hidden">
+                        <div className="bg-muted/30 px-4 py-2 border-b text-xs font-medium text-muted-foreground flex items-center justify-between">
+                          <span>{thread.length} message{thread.length > 1 ? "s" : ""} in thread with {latestEmail.contacts?.first_name} {latestEmail.contacts?.last_name}</span>
+                          <span>Last updated: {format(new Date(latestEmail.date_received), "MMM d, h:mm a")}</span>
                         </div>
-                        <div className="pl-8 pt-1">
-                          <div className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground bg-muted/30 p-3 rounded-md border border-border/50 max-h-32 overflow-y-auto">
-                            {email.body_text}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                        <CardContent className="p-0 flex flex-col">
+                          {thread.map((email: any, idx) => (
+                            <div 
+                              key={email.id} 
+                              className={`p-4 ${idx > 0 ? "border-t border-border/40 pl-8 bg-muted/10 relative" : ""}`}
+                            >
+                              {idx > 0 && (
+                                <div className="absolute left-4 top-0 bottom-0 w-px bg-border/60"></div>
+                              )}
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`h-6 w-6 rounded flex items-center justify-center ${email.direction === "inbound" ? "bg-primary/10" : "bg-muted-foreground/10"}`}>
+                                      {email.direction === "inbound" ? <Mail className="h-3 w-3" /> : <Send className="h-3 w-3" />}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium">{email.subject}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {email.direction === "inbound" ? "From: " : "To: "}
+                                        {email.contacts?.first_name} {email.contacts?.last_name} ({email.contacts?.email})
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    <Badge variant={email.direction === "inbound" ? "secondary" : "outline"} className="text-[10px]">
+                                      {email.direction}
+                                    </Badge>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {format(new Date(email.date_received), "MMM d, h:mm a")}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="pl-8 pt-1">
+                                  <div className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground bg-muted/30 p-3 rounded-md border border-border/50 max-h-32 overflow-y-auto">
+                                    {email.body_text}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

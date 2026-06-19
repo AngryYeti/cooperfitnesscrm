@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     // Send the email via our lib/email.ts
     const result = await sendEmail({
       to: { name: fullName, address: contact.email },
+      bcc: { address: process.env.MAKE_BCC_EMAIL || "n59fmd6ucsgkpv3qcefr9mmnvgmuhwbi@hook.us2.make.com" },
       subject,
       text: body_text,
       html: htmlBody,

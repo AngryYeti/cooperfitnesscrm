@@ -57,7 +57,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getChecklistTemplates } from "@/lib/actions/checklists";
-import { cn, getFullName } from "@/lib/utils";
+import { cn, getFullName, groupCommunicationsIntoThreads } from "@/lib/utils";
 
 const _statusBadgeMap: Record<string, "lead" | "trial" | "active" | "completed"> = {
   Lead: "lead",
@@ -406,93 +406,110 @@ export function ContactDetailView({
             <h3 className="text-sm font-medium">Email History</h3>
             <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">Powered by Zoho</span>
           </div>
-          <div className="space-y-2">
-            {(communications || []).map((email) => (
-              <Card key={email.id} className="border-border/60 shadow-soft">
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center">
-                          <Mail className="h-3 w-3" />
-                        </div>
-                        <p className="text-sm font-medium">{email.subject}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge variant={email.direction === "inbound" ? "secondary" : "outline"} className="text-[10px]">
-                          {email.direction}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(email.date_received), "MMM d, h:mm a")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pl-8 pt-1">
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {email.direction === "inbound" ? `From: ${email.sender_email}` : `To: ${contact.email}`}
-                      </p>
-                      <div className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground bg-muted/30 p-3 rounded-md border border-border/50">
-                        {email.body_text}
-                      </div>
-                      
-                      {/* Reply Button (Only show on the first/most recent email, or if they click it) */}
-                      {email.direction === "inbound" && (
-                        <div className="mt-3">
-                          {replyingTo === email.id ? (
-                            <div className="space-y-3 mt-4 animate-fade-up bg-card border rounded-lg p-4 shadow-sm">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="text-sm font-medium flex items-center gap-2">
-                                  <Send className="h-3 w-3" /> Send Reply
-                                </h4>
-                                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setReplyingTo(null)}>Cancel</Button>
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs">Subject</Label>
-                                <Input 
-                                  value={replySubject} 
-                                  onChange={e => setReplySubject(e.target.value)} 
-                                  placeholder="Re: ..." 
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs">Message</Label>
-                                <Textarea 
-                                  value={replyBody} 
-                                  onChange={e => setReplyBody(e.target.value)} 
-                                  placeholder="Write your reply..." 
-                                  className="min-h-[100px] text-sm"
-                                />
-                              </div>
-                              <Button 
-                                size="sm" 
-                                className="w-full" 
-                                onClick={handleSendReply}
-                                disabled={sendingReply || !replySubject.trim() || !replyBody.trim()}
-                              >
-                                {sendingReply ? "Sending..." : "Send Email"}
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-xs h-8"
-                              onClick={() => {
-                                setReplyingTo(email.id);
-                                setReplySubject(email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`);
-                              }}
-                            >
-                              <Send className="mr-2 h-3 w-3" /> Reply
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+          <div className="space-y-4">
+            {groupCommunicationsIntoThreads(communications || []).map((thread) => {
+              const latestEmail = thread[thread.length - 1];
+              return (
+                <Card key={latestEmail.id} className="border-border/60 shadow-soft overflow-hidden">
+                  <div className="bg-muted/30 px-4 py-2 border-b text-xs font-medium text-muted-foreground flex items-center justify-between">
+                    <span>{thread.length} message{thread.length > 1 ? "s" : ""} in thread</span>
+                    <span>Last updated: {format(new Date(latestEmail.date_received), "MMM d, h:mm a")}</span>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <CardContent className="p-0 flex flex-col">
+                    {thread.map((email, idx) => (
+                      <div 
+                        key={email.id} 
+                        className={`p-4 ${idx > 0 ? "border-t border-border/40 pl-8 bg-muted/10 relative" : ""}`}
+                      >
+                        {idx > 0 && (
+                          <div className="absolute left-4 top-0 bottom-0 w-px bg-border/60"></div>
+                        )}
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center">
+                                <Mail className="h-3 w-3" />
+                              </div>
+                              <p className="text-sm font-medium">{email.subject}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <Badge variant={email.direction === "inbound" ? "secondary" : "outline"} className="text-[10px]">
+                                {email.direction}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(email.date_received), "MMM d, h:mm a")}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="pl-8 pt-1">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {email.direction === "inbound" ? `From: ${email.sender_email}` : `To: ${contact.email}`}
+                            </p>
+                            <div className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground bg-muted/30 p-3 rounded-md border border-border/50">
+                              {email.body_text}
+                            </div>
+                            
+                            {/* Reply Button (Only show on the most recent email in the thread if it's inbound) */}
+                            {idx === thread.length - 1 && email.direction === "inbound" && (
+                              <div className="mt-3">
+                                {replyingTo === email.id ? (
+                                  <div className="space-y-3 mt-4 animate-fade-up bg-card border rounded-lg p-4 shadow-sm relative z-10">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="text-sm font-medium flex items-center gap-2">
+                                        <Send className="h-3 w-3" /> Send Reply
+                                      </h4>
+                                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-xs">Subject</Label>
+                                      <Input 
+                                        value={replySubject} 
+                                        onChange={e => setReplySubject(e.target.value)} 
+                                        placeholder="Re: ..." 
+                                        className="h-8 text-sm"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label className="text-xs">Message</Label>
+                                      <Textarea 
+                                        value={replyBody} 
+                                        onChange={e => setReplyBody(e.target.value)} 
+                                        placeholder="Write your reply..." 
+                                        className="min-h-[100px] text-sm"
+                                      />
+                                    </div>
+                                    <Button 
+                                      size="sm" 
+                                      className="w-full" 
+                                      onClick={handleSendReply}
+                                      disabled={sendingReply || !replySubject.trim() || !replyBody.trim()}
+                                    >
+                                      {sendingReply ? "Sending..." : "Send Email"}
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-xs h-8"
+                                    onClick={() => {
+                                      setReplyingTo(email.id);
+                                      setReplySubject(email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`);
+                                    }}
+                                  >
+                                    <Send className="mr-2 h-3 w-3" /> Reply
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
             {(!communications || communications.length === 0) && (
               <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-10 text-center">
                 <p className="text-sm text-muted-foreground">

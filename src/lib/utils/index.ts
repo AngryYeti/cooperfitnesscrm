@@ -33,3 +33,38 @@ export function getReadableTextColor(hex: string): string {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.6 ? "#0a0a0a" : "#ffffff";
 }
+
+export function normalizeSubject(subject: string): string {
+  if (!subject) return "";
+  // Remove common prefixes: Re:, Fw:, Fwd:, etc. (case insensitive)
+  return subject.replace(/^(re|fw|fwd|forward):\s*/i, "").trim().toLowerCase();
+}
+
+export function groupCommunicationsIntoThreads<T extends { subject: string; date_received: string | Date; contact_id: string }>(
+  comms: T[]
+): T[][] {
+  const threadsMap = new Map<string, T[]>();
+
+  // Sort chronologically first so threads are built from oldest to newest
+  const sortedComms = [...comms].sort(
+    (a, b) => new Date(a.date_received).getTime() - new Date(b.date_received).getTime()
+  );
+
+  sortedComms.forEach((comm) => {
+    const key = `${comm.contact_id}|${normalizeSubject(comm.subject)}`;
+    if (!threadsMap.has(key)) {
+      threadsMap.set(key, []);
+    }
+    threadsMap.get(key)!.push(comm);
+  });
+
+  // Sort threads by the date of their most recent message, descending (newest threads first)
+  const threads = Array.from(threadsMap.values());
+  threads.sort((a, b) => {
+    const latestA = new Date(a[a.length - 1].date_received).getTime();
+    const latestB = new Date(b[b.length - 1].date_received).getTime();
+    return latestB - latestA;
+  });
+
+  return threads;
+}
