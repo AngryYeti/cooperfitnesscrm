@@ -33,7 +33,7 @@ export default function LoginPage() {
       setError(error.message);
     } else {
       setStep("code");
-      setSuccessMsg("We sent a 6-digit login code to your email.");
+      setSuccessMsg("We sent an 8-digit login code to your email.");
     }
 
     setLoading(false);
@@ -117,7 +117,7 @@ export default function LoginPage() {
           ) : (
             <form onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="space-y-2">
-                <Label htmlFor="code">Enter 6-Digit Code</Label>
+                <Label htmlFor="code">Enter 8-Digit Code</Label>
                 <p className="text-xs text-muted-foreground mb-3">
                   {successMsg}
                 </p>
@@ -127,12 +127,12 @@ export default function LoginPage() {
                     id="code"
                     type="text"
                     inputMode="numeric"
-                    placeholder="123456"
+                    placeholder="12345678"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     required
                     className="h-10 pl-9 tracking-widest font-mono text-center"
-                    maxLength={6}
+                    maxLength={8}
                   />
                 </div>
               </div>
@@ -146,7 +146,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full h-10 shadow-soft"
-                disabled={loading || code.length !== 6}
+                disabled={loading || code.length !== 8}
               >
                 {loading ? "Verifying..." : "Verify Code & Log In"}
               </Button>
