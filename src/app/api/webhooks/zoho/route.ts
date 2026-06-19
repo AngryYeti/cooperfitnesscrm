@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     if (contactError || !contacts || contacts.length === 0) {
       // Email not associated with any client, ignore or log
-      return NextResponse.json({ message: "No matching contact found" }, { status: 200 });
+      return NextResponse.json({ message: "No matching contact found", searchedEmail: cleanEmail }, { status: 200 });
     }
 
     const contact = contacts[0];
