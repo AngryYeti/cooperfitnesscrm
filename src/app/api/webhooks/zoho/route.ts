@@ -26,9 +26,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing sender_email", debug: debugInfo, contentType }, { status: 400 });
     }
 
-    // Extract pure email address if formatted as "Name <email@domain.com>"
-    const emailMatch = sender_email.match(/<(.+)>/);
-    const cleanEmail = emailMatch ? emailMatch[1].trim() : sender_email.trim();
+    // Extract pure email address if formatted as "Name <email@domain.com>" or as a stringified JSON object
+    let cleanEmail = sender_email.trim();
+    if (cleanEmail.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(cleanEmail);
+        if (parsed.address) cleanEmail = parsed.address;
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    } else {
+      const emailMatch = sender_email.match(/<(.+)>/);
+      if (emailMatch) cleanEmail = emailMatch[1].trim();
+    }
 
     // Initialize admin client to bypass RLS for webhook processing
     const supabase = createClient(
