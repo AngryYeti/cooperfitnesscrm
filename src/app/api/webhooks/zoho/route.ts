@@ -3,8 +3,20 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
   try {
-    const payload = await req.json();
-    const { sender_email, subject, text_body } = payload;
+    const contentType = req.headers.get("content-type") || "";
+    let sender_email, subject, text_body;
+
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      const formData = await req.formData();
+      sender_email = formData.get("sender_email") as string;
+      subject = formData.get("subject") as string;
+      text_body = formData.get("text_body") as string;
+    } else {
+      const payload = await req.json();
+      sender_email = payload.sender_email;
+      subject = payload.subject;
+      text_body = payload.text_body;
+    }
 
     if (!sender_email) {
       return NextResponse.json({ error: "Missing sender_email" }, { status: 400 });
