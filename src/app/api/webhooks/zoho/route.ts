@@ -26,6 +26,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing sender_email", debug: debugInfo, contentType }, { status: 400 });
     }
 
+    // Extract pure email address if formatted as "Name <email@domain.com>"
+    const emailMatch = sender_email.match(/<(.+)>/);
+    const cleanEmail = emailMatch ? emailMatch[1].trim() : sender_email.trim();
+
     // Initialize admin client to bypass RLS for webhook processing
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
     const { data: contacts, error: contactError } = await supabase
       .from("contacts")
       .select("id, first_name, last_name")
-      .ilike("email", sender_email.trim());
+      .ilike("email", cleanEmail);
 
     if (contactError || !contacts || contacts.length === 0) {
       // Email not associated with any client, ignore or log
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest) {
     const { error: insertError } = await supabase.from("client_communications").insert({
       contact_id: contact.id,
       direction: "inbound",
-      sender_email: sender_email.trim(),
+      sender_email: cleanEmail,
       subject: subject || "No Subject",
       body_text: text_body || "",
     });
