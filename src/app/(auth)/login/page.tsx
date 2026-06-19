@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dumbbell, Sparkles } from "lucide-react";
+import { Dumbbell, Sparkles, Mail, KeyRound, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,28 +9,54 @@ import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"email" | "code">("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccessMsg("");
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      password,
+      options: {
+        shouldCreateUser: false, // Security: Only allow existing users (evan@cooper.fitness)
+      },
     });
 
     if (error) {
       setError(error.message);
     } else {
-      window.location.href = "/";
+      setStep("code");
+      setSuccessMsg("We sent a 6-digit login code to your email.");
     }
 
     setLoading(false);
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "email",
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -50,53 +76,100 @@ export default function LoginPage() {
           </h1>
           <p className="text-muted-foreground mt-1.5 flex items-center justify-center gap-1.5 text-sm">
             <Sparkles className="h-3.5 w-3.5" />
-            Your coaching command center
+            Secure Coach Dashboard
           </p>
         </div>
 
         <div className="rounded-2xl border border-border/60 bg-card p-7 shadow-floating">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-10"
-              />
-            </div>
-            {error && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2.5 text-sm text-destructive">
-                {error}
+          {step === "email" ? (
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="evan@cooper.fitness"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-10 pl-9"
+                  />
+                </div>
               </div>
-            )}
-            <Button
-              type="submit"
-              className="w-full h-10 shadow-soft"
-              disabled={loading}
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
+              
+              {error && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2.5 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+              
+              <Button
+                type="submit"
+                className="w-full h-10 shadow-soft"
+                disabled={loading}
+              >
+                {loading ? "Sending Code..." : "Send Login Code"}
+                {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="space-y-2">
+                <Label htmlFor="code">Enter 6-Digit Code</Label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {successMsg}
+                </p>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="code"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="123456"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    required
+                    className="h-10 pl-9 tracking-widest font-mono text-center"
+                    maxLength={6}
+                  />
+                </div>
+              </div>
+              
+              {error && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2.5 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+              
+              <Button
+                type="submit"
+                className="w-full h-10 shadow-soft"
+                disabled={loading || code.length !== 6}
+              >
+                {loading ? "Verifying..." : "Verify Code & Log In"}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-xs text-muted-foreground"
+                onClick={() => {
+                  setStep("email");
+                  setCode("");
+                  setError("");
+                }}
+                disabled={loading}
+              >
+                Use a different email
+              </Button>
+            </form>
+          )}
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Cooper Fitness CRM · Coach dashboard
+          Secured by Email OTP
         </p>
       </div>
     </div>
