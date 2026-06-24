@@ -12,6 +12,7 @@ import {
   Settings,
   Sparkles,
   DollarSign,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const navItems = [
   { name: "Calendar", href: "/calendar", icon: CalendarDays },
   { name: "Email", href: "/email", icon: Mail },
   { name: "Follow-Ups", href: "/follow-ups", icon: CalendarClock },
+  { name: "Forms", href: "/forms", icon: FileText },
   { name: "Intake", href: "/intake", icon: ClipboardCheck },
   { name: "Revenue", href: "/revenue", icon: DollarSign },
   { name: "Settings", href: "/settings", icon: Settings },

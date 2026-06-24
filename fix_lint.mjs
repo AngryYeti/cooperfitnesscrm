@@ -38,6 +38,11 @@ const anyFiles = [
   "src/app/(dashboard)/calendar/calendar-view.tsx",
   "src/app/(dashboard)/clients/[id]/page.tsx",
   "src/app/(dashboard)/follow-ups/page.tsx",
+  "src/lib/actions/forms.ts",
+  "src/components/forms/forms-dashboard.tsx",
+  "src/components/forms/template-builder.tsx",
+  "src/app/api/webhooks/docuseal/route.ts",
+  "src/app/api/forms/download/[id]/route.ts",
 ];
 
 for (const file of anyFiles) {

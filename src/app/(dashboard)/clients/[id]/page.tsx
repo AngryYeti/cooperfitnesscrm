@@ -4,6 +4,7 @@ import { getNotesByContactId } from "@/lib/actions/notes";
 import { getClientChecklists } from "@/lib/actions/checklists";
 import { getFollowUps } from "@/lib/actions/follow-ups";
 import { getClientCommunications } from "@/lib/actions/communications";
+import { getClientFormsByContactId } from "@/lib/actions/forms";
 import { ContactDetailView } from "@/components/clients/contact-detail-view";
 
 export default async function ClientDetailPage({
@@ -18,6 +19,7 @@ export default async function ClientDetailPage({
   let checklists;
   let followUps;
   let communications;
+  let forms;
 
   try {
     contact = await getContactById(id);
@@ -26,6 +28,7 @@ export default async function ClientDetailPage({
     const allFollowUps = await getFollowUps();
     followUps = allFollowUps.filter((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => fu.contact_id === id);
     communications = await getClientCommunications(id);
+    forms = await getClientFormsByContactId(id);
   } catch {
     notFound();
   }
@@ -37,6 +40,7 @@ export default async function ClientDetailPage({
       checklists={checklists}
       followUps={followUps}
       communications={communications}
+      forms={forms}
     />
   );
 }

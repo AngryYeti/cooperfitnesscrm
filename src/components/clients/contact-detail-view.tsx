@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, useRef, useTransition } from "react";
@@ -11,17 +12,18 @@ import {
   Tag,
   Target,
   Trash2,
-  
   ListChecks,
   Clock,
   Check,
-  MoreVertical,
   Plus,
   Send,
   Loader2,
   Pencil,
+  FileText,
+  RefreshCw,
+  ExternalLink,
 } from "lucide-react";
-import { Contact, Note, ClientChecklist, Communication } from "@/lib/types";
+import { Contact, Note, ClientChecklist, Communication, ContactStatus } from "@/lib/types";
 import { format } from "date-fns";
 import { createNote, deleteNote } from "@/lib/actions/notes";
 import {
@@ -57,14 +59,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { getChecklistTemplates } from "@/lib/actions/checklists";
+import { getFormTemplates, sendFormToClient, syncDocuSealSubmissions } from "@/lib/actions/forms";
 import { cn, getFullName, groupCommunicationsIntoThreads } from "@/lib/utils";
-
-const _statusBadgeMap: Record<string, "lead" | "trial" | "active" | "completed"> = {
-  Lead: "lead",
-  Trial: "trial",
-  "Active Client": "active",
-  Completed: "completed",
-};
 
 const statusOptions = ["Lead", "Trial", "Active Client", "Completed"];
 
@@ -74,12 +70,14 @@ export function ContactDetailView({
   checklists: initialChecklists,
   followUps: initialFollowUps,
   communications: initialCommunications,
+  forms: initialForms,
 }: {
   contact: Contact;
   notes: Note[];
   checklists: ClientChecklist[];
-  followUps: any /* eslint-disable-line @typescript-eslint/no-explicit-any */[];
+  followUps: any[];
   communications?: Communication[];
+  forms?: any[];
 }) {
   const router = useRouter();
   const [contact, setContact] = useState(initialContact);
@@ -88,6 +86,7 @@ export function ContactDetailView({
   const [checklists, setChecklists] = useState(initialChecklists);
   const [followUps, setFollowUps] = useState(initialFollowUps);
   const [communications, setCommunications] = useState(initialCommunications || []);
+  const [forms] = useState<any[]>(initialForms || []);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
   
@@ -102,7 +101,49 @@ export function ContactDetailView({
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
 
   const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [templates, setTemplates] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [templates, setTemplates] = useState<any[]>([]);
+
+  const [isSendFormOpen, setIsSendFormOpen] = useState(false);
+  const [formTemplates, setFormTemplates] = useState<any[]>([]);
+  const [sendingForm, setSendingForm] = useState(false);
+  const [syncingForms, setSyncingForms] = useState(false);
+
+  const handleSendForm = async (templateId: string) => {
+    setSendingForm(true);
+    try {
+      await sendFormToClient(contact.id, templateId);
+      setIsSendFormOpen(false);
+      window.location.reload();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to send form");
+    } finally {
+      setSendingForm(false);
+    }
+  };
+
+  const handleSyncForms = async () => {
+    setSyncingForms(true);
+    try {
+      const res = await syncDocuSealSubmissions();
+      if (res.updated > 0) {
+        window.location.reload();
+      } else {
+        alert("Forms are up to date.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to sync forms status: " + err.message);
+    } finally {
+      setSyncingForms(false);
+    }
+  };
+
+  const openSendFormDialog = async () => {
+    const data = await getFormTemplates();
+    setFormTemplates(data);
+    setIsSendFormOpen(true);
+  };
 
   const saveField = (patch: Partial<Contact>) => {
     const previous = contact;
@@ -221,7 +262,7 @@ export function ContactDetailView({
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    saveField({ status: newStatus as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ });
+    saveField({ status: newStatus as ContactStatus });
   };
 
   return (
@@ -346,9 +387,100 @@ export function ContactDetailView({
         <TabsList className="bg-muted/40">
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
+          <TabsTrigger value="forms">Forms</TabsTrigger>
           <TabsTrigger value="checklists">Checklists</TabsTrigger>
           <TabsTrigger value="followups">Follow-Ups</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="forms" className="space-y-3 mt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">DocuSeal Forms</h3>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSyncForms}
+                disabled={syncingForms}
+                className="h-8 px-2.5 text-xs shadow-soft"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", syncingForms && "animate-spin")} />
+                Sync Status
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openSendFormDialog}
+                className="h-8 px-2.5 text-xs shadow-soft"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Send Form
+              </Button>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            {forms.map((form) => (
+              <Card key={form.id} className="border-border/60 shadow-soft">
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{form.form_templates?.name || "Custom Form"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sent on {format(new Date(form.created_at), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Badge 
+                      variant={
+                        form.status === "completed" 
+                          ? "success" 
+                          : form.status === "received" 
+                            ? "secondary" 
+                            : "outline"
+                      }
+                      className="capitalize"
+                    >
+                      {form.status === "received" ? "received (viewed)" : form.status}
+                    </Badge>
+                    
+                    {form.status === "completed" ? (
+                      <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                        <a href={`/api/forms/download/${form.id}`} download>
+                          <Send className="mr-1.5 h-3.5 w-3.5" />
+                          Download PDF
+                        </a>
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        {form.signing_url && (
+                          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                            <a href={form.signing_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                              Sign
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {forms.length === 0 && (
+              <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 py-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No forms sent yet. Click Send Form to request a signature.
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
         <TabsContent value="notes" className="space-y-3 mt-4">
           <div className="flex gap-2">
@@ -529,7 +661,7 @@ export function ContactDetailView({
             </Button>
           </div>
           {checklists.map((checklist) => {
-            const completed = checklist.items.filter((i: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => i.completed).length;
+            const completed = checklist.items.filter((i: any) => i.completed).length;
             const total = checklist.items.length;
             const pct = total > 0 ? (completed / total) * 100 : 0;
             return (
@@ -548,7 +680,7 @@ export function ContactDetailView({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    {checklist.items.map((item: any /* eslint-disable-line @typescript-eslint/no-explicit-any */, index: number) => (
+                    {checklist.items.map((item: any, index: number) => (
                       <label
                         key={index}
                         className="flex items-center gap-3 cursor-pointer rounded-md px-1 py-1 hover:bg-muted/30 transition-colors"
@@ -609,7 +741,7 @@ export function ContactDetailView({
               </p>
             </div>
           ) : (
-            followUps.map((fu: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) => (
+            followUps.map((fu: any) => (
               <Card
                 key={fu.id}
                 className={`border-border/60 shadow-soft ${
@@ -712,6 +844,39 @@ export function ContactDetailView({
               </p>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSendFormOpen} onOpenChange={setIsSendFormOpen}>
+        <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-md">
+          <DialogHeader>
+            <DialogTitle>Send Form to Client</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            {formTemplates.map((tmpl) => (
+              <Button
+                key={tmpl.id}
+                variant="outline"
+                className="w-full justify-start h-11 text-sm font-medium"
+                disabled={sendingForm}
+                onClick={() => handleSendForm(tmpl.id)}
+              >
+                <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+                {tmpl.name}
+              </Button>
+            ))}
+            {formTemplates.length === 0 && (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No form templates available. Create one in the Forms tab.
+              </p>
+            )}
+          </div>
+          {sendingForm && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Preparing DocuSeal signature request...
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
