@@ -17,7 +17,7 @@ import {
   updateCalendarEvent,
 } from "@/lib/actions/calendar";
 import { getContacts } from "@/lib/actions/contacts";
-import type { CalendarEvent } from "@/lib/types";
+import type { CalendarEvent, Contact } from "@/lib/types";
 import { getEventColor } from "@/lib/event-colors";
 import { format, parseISO } from "date-fns";
 
@@ -49,11 +49,13 @@ export function EventForm({
   const [allDay, setAllDay] = useState(event?.all_day || false);
   const [taskType, setTaskType] = useState("none");
   const [contactId, setContactId] = useState(event?.contact_id || "");
-  const [contacts, setContacts] = useState<
-    { id: string; first_name: string; last_name: string }[]
-  >([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactsLoaded, setContactsLoaded] = useState(false);
   const [contactsError, setContactsError] = useState(false);
+  const [sendInvite, setSendInvite] = useState(false);
+
+  const selectedContact = contacts.find((c) => c.id === contactId);
+  const hasEmail = Boolean(selectedContact?.email);
   const [recurring, setRecurring] = useState("none");
   const [recurCount, setRecurCount] = useState(4);
   const [startDate, setStartDate] = useState(() => {
@@ -176,28 +178,35 @@ export function EventForm({
 
       if (event) {
         const { start, end } = buildTimes();
-        await updateCalendarEvent(event.id, {
-          title: finalTitle,
-          description: description.trim() || null,
-          start_time: start,
-          end_time: end,
-          all_day: allDay,
-          contact_id: contactIdRef.current || null,
-          color: event.color || getEventColor(finalTitle),
-        });
-      } else {
-        const count = recurring === "none" ? 1 : recurCount;
-        for (let i = 0; i < count; i++) {
-          const { start, end } = buildTimes(i);
-          await createCalendarEvent({
+        await updateCalendarEvent(
+          event.id,
+          {
             title: finalTitle,
-            description: description.trim(),
+            description: description.trim() || null,
             start_time: start,
             end_time: end,
             all_day: allDay,
             contact_id: contactIdRef.current || null,
-            color: getEventColor(finalTitle),
-          });
+            color: event.color || getEventColor(finalTitle),
+          },
+          sendInvite
+        );
+      } else {
+        const count = recurring === "none" ? 1 : recurCount;
+        for (let i = 0; i < count; i++) {
+          const { start, end } = buildTimes(i);
+          await createCalendarEvent(
+            {
+              title: finalTitle,
+              description: description.trim(),
+              start_time: start,
+              end_time: end,
+              all_day: allDay,
+              contact_id: contactIdRef.current || null,
+              color: getEventColor(finalTitle),
+            },
+            sendInvite
+          );
         }
       }
       onSuccess();
@@ -241,7 +250,10 @@ export function EventForm({
         <Label>Client</Label>
         <Select
           value={contactId}
-          onValueChange={setContactId}
+          onValueChange={(val) => {
+            setContactId(val);
+            setSendInvite(false);
+          }}
           onOpenChange={(open) => {
             if (open) loadContacts();
           }}
@@ -257,6 +269,28 @@ export function EventForm({
             ))}
           </SelectContent>
         </Select>
+        {contactId && (
+          <div className="pt-1">
+            {hasEmail ? (
+              <div className="flex items-center gap-2">
+                <input
+                  id="sendInvite"
+                  type="checkbox"
+                  checked={sendInvite}
+                  onChange={(e) => setSendInvite(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 cursor-pointer"
+                />
+                <Label htmlFor="sendInvite" className="font-normal text-xs text-muted-foreground cursor-pointer select-none">
+                  Send calendar invite (.ics + Google Calendar link) to client
+                </Label>
+              </div>
+            ) : (
+              <p className="text-[11px] text-amber-600 font-medium leading-relaxed">
+                ⚠️ Selected client does not have an email address on file. Invitation cannot be sent.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
