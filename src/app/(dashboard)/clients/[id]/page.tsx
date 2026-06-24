@@ -5,6 +5,7 @@ import { getClientChecklists } from "@/lib/actions/checklists";
 import { getFollowUps } from "@/lib/actions/follow-ups";
 import { getClientCommunications } from "@/lib/actions/communications";
 import { getClientFormsByContactId } from "@/lib/actions/forms";
+import { Contact, Note, ClientChecklist, Communication } from "@/lib/types";
 import { ContactDetailView } from "@/components/clients/contact-detail-view";
 
 export default async function ClientDetailPage({
@@ -14,12 +15,12 @@ export default async function ClientDetailPage({
 }) {
   const { id } = await params;
 
-  let contact;
-  let notes;
-  let checklists;
-  let followUps;
-  let communications;
-  let forms;
+  let contact: Contact;
+  let notes: Note[] = [];
+  let checklists: ClientChecklist[] = [];
+  let followUps: any[] = [];
+  let communications: Communication[] = [];
+  let forms: any[] = [];
 
   try {
     contact = await getContactById(id);
