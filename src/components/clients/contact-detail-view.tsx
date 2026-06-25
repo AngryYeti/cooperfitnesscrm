@@ -109,6 +109,24 @@ export function ContactDetailView({
   const [sendingForm, setSendingForm] = useState(false);
   const [syncingForms, setSyncingForms] = useState(false);
 
+  // Signing dialog states
+  const [signingFormUrl, setSigningFormUrl] = useState<string | null>(null);
+  const [signingFormName, setSigningFormName] = useState<string>("");
+  const [isSigningOpen, setIsSigningOpen] = useState(false);
+
+  const handleCloseSigning = async () => {
+    setIsSigningOpen(false);
+    setSigningFormUrl(null);
+    setSigningFormName("");
+    // Auto-sync status after closing
+    try {
+      await syncDocuSealSubmissions();
+      window.location.reload();
+    } catch (err) {
+      console.error("Failed to sync forms on close:", err);
+    }
+  };
+
   const handleSendForm = async (templateId: string) => {
     setSendingForm(true);
     try {
@@ -459,11 +477,18 @@ export function ContactDetailView({
                     ) : (
                       <div className="flex items-center gap-1">
                         {form.signing_url && (
-                          <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                            <a href={form.signing_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-                              Sign
-                            </a>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              setSigningFormUrl(form.signing_url);
+                              setSigningFormName(form.form_templates?.name || "Form");
+                              setIsSigningOpen(true);
+                            }}
+                          >
+                            <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                            Sign
                           </Button>
                         )}
                       </div>
@@ -878,6 +903,27 @@ export function ContactDetailView({
               Preparing DocuSeal signature request...
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSigningOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseSigning();
+        }
+      }}>
+        <DialogContent className="max-w-[95vw] w-[1200px] h-[85vh] flex flex-col p-6 bg-background/95 backdrop-blur-md">
+          <DialogHeader className="pb-2 border-b border-border/40">
+            <DialogTitle>Sign Form - {signingFormName}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 w-full h-full bg-muted rounded-lg overflow-hidden border border-border mt-4">
+            {signingFormUrl && (
+              <iframe
+                src={signingFormUrl}
+                className="w-full h-full border-0"
+                allow="camera; microphone"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -63,6 +63,25 @@ export function FormsDashboard() {
   // Global Sync State
   const [syncing, setSyncing] = useState(false);
 
+  // Signing dialog states
+  const [signingUrl, setSigningUrl] = useState<string | null>(null);
+  const [signingFormName, setSigningFormName] = useState<string>("");
+  const [isSigningOpen, setIsSigningOpen] = useState(false);
+
+  const handleCloseSigning = async () => {
+    setIsSigningOpen(false);
+    setSigningUrl(null);
+    setSigningFormName("");
+    // Auto-sync status after closing
+    try {
+      await syncDocuSealSubmissions();
+      const formsData = await getClientForms();
+      setClientForms(formsData);
+    } catch (err) {
+      console.error("Failed to sync forms on close:", err);
+    }
+  };
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -327,11 +346,18 @@ export function FormsDashboard() {
                     ) : (
                       <div className="flex items-center gap-1.5">
                         {form.signing_url && (
-                          <Button asChild size="sm" variant="outline" className="h-9 text-xs shadow-soft">
-                            <a href={form.signing_url} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-                              Sign Link
-                            </a>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-9 text-xs shadow-soft"
+                            onClick={() => {
+                              setSigningUrl(form.signing_url);
+                              setSigningFormName(form.form_templates?.name || "Form");
+                              setIsSigningOpen(true);
+                            }}
+                          >
+                            <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                            Sign Form
                           </Button>
                         )}
                       </div>
@@ -504,6 +530,27 @@ export function FormsDashboard() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSigningOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseSigning();
+        }
+      }}>
+        <DialogContent className="max-w-[95vw] w-[1200px] h-[85vh] flex flex-col p-6 bg-background/95 backdrop-blur-md">
+          <DialogHeader className="pb-2 border-b border-border/40">
+            <DialogTitle>Sign Form - {signingFormName}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 w-full h-full bg-muted rounded-lg overflow-hidden border border-border mt-4">
+            {signingUrl && (
+              <iframe
+                src={signingUrl}
+                className="w-full h-full border-0"
+                allow="camera; microphone"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
