@@ -69,7 +69,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${cleanFilename}"`,
+        "Content-Disposition": `inline; filename="${cleanFilename}"`,
         "Content-Length": fileBuffer.length.toString(),
       },
     });

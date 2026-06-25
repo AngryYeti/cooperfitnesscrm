@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FolderLock,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -318,9 +319,9 @@ export function FormsDashboard() {
 
                     {form.status === "completed" ? (
                       <Button asChild size="sm" variant="outline" className="h-9 text-xs shadow-soft">
-                        <a href={`/api/forms/download/${form.id}`} download>
-                          <Send className="mr-1.5 h-3.5 w-3.5" />
-                          Download PDF
+                        <a href={`/api/forms/download/${form.id}`} target="_blank" rel="noopener noreferrer">
+                          <Eye className="mr-1.5 h-3.5 w-3.5" />
+                          View Form
                         </a>
                       </Button>
                     ) : (
