@@ -58,6 +58,7 @@ export function Header() {
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    document.cookie = "cooper_fitness_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     window.location.href = "/login";
   };
 

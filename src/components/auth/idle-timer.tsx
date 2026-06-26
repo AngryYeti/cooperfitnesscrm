@@ -20,6 +20,7 @@ export function IdleTimer() {
       console.log("User idle for 30 minutes. Logging out...");
       const supabase = createClient();
       await supabase.auth.signOut();
+      document.cookie = "cooper_fitness_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
       window.location.href = "/login";
     };
 
