@@ -3,6 +3,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const DocusealForm = dynamic(
+  () => import("@docuseal/react").then((mod) => mod.DocusealForm),
+  { ssr: false }
+);
 import {
   FileText,
   Plus,
@@ -544,10 +550,10 @@ export function FormsDashboard() {
           </DialogHeader>
           <div className="flex-1 w-full h-full bg-muted rounded-lg overflow-hidden border border-border mt-4">
             {signingUrl && (
-              <iframe
+              <DocusealForm
                 src={signingUrl}
+                onComplete={handleCloseSigning}
                 className="w-full h-full border-0"
-                allow="camera; microphone"
               />
             )}
           </div>

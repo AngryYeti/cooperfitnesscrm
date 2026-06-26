@@ -4,6 +4,12 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const DocusealForm = dynamic(
+  () => import("@docuseal/react").then((mod) => mod.DocusealForm),
+  { ssr: false }
+);
 import {
   ArrowLeft,
   Phone,
@@ -917,10 +923,10 @@ export function ContactDetailView({
           </DialogHeader>
           <div className="flex-1 w-full h-full bg-muted rounded-lg overflow-hidden border border-border mt-4">
             {signingFormUrl && (
-              <iframe
+              <DocusealForm
                 src={signingFormUrl}
+                onComplete={handleCloseSigning}
                 className="w-full h-full border-0"
-                allow="camera; microphone"
               />
             )}
           </div>
