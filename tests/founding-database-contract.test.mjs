@@ -108,5 +108,18 @@ test("capacity and idempotency are enforced by database constraints", () => {
   has(/stripe_payment_intent_id[^,]*unique/i, "membership payment linkage must be unique");
   has(/check\s*\(\s*service_end_at\s*>\s*service_start_at\s*\)/i, "membership service dates need a database check");
   has(/service_timezone[\s\S]*founding_memberships[\s\S]*v_cohort\.service_timezone/is, "fulfillment must use cohort timezone");
+  has(/v_service_end\s*:=\s*\(\s*v_paid_at\s+at time zone\s+v_cohort\.service_timezone\s*\+\s*interval\s+'6 months'\s*\)\s+at time zone\s+v_cohort\.service_timezone/is, "service end must use calendar arithmetic in the cohort timezone");
   has(/founding_reservations[\s\S]*capacity[^\n]*5|capacity[^\n]*default\s+5/is, "the founding capacity must default to five");
+});
+
+test("DST-boundary calendar-month expectation is documented", () => {
+  const dstBoundaryFixtures = [
+    { localStart: "2024-03-10 01:30", localEnd: "2024-09-10 01:30" },
+    { localStart: "2024-11-03 01:30", localEnd: "2025-05-03 01:30" },
+  ];
+  assert.deepEqual(dstBoundaryFixtures.map(({ localStart, localEnd }) => [localStart.slice(0, 10), localEnd.slice(0, 10)]), [
+    ["2024-03-10", "2024-09-10"],
+    ["2024-11-03", "2025-05-03"],
+  ]);
+  assert.match(sql, /AT TIME ZONE v_cohort\.service_timezone[\s\S]*interval '6 months'[\s\S]*AT TIME ZONE v_cohort\.service_timezone/i);
 });
