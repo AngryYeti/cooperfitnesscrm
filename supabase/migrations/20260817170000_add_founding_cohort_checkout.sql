@@ -170,7 +170,7 @@ declare
   v_reservation public.founding_reservations%rowtype;
 begin
   v_normalized_email := pg_catalog.lower(pg_catalog.btrim(p_email));
-  if v_normalized_email = '' then
+  if coalesce(v_normalized_email, '') = '' then
     raise exception 'email is required';
   end if;
   if p_hold_minutes is null or p_hold_minutes not between 1 and 30 then
@@ -291,6 +291,7 @@ declare
   v_event public.stripe_webhook_events%rowtype;
   v_reservation public.founding_reservations%rowtype;
   v_cohort public.founding_cohorts%rowtype;
+  v_cohort_id uuid;
   v_existing_membership public.founding_memberships%rowtype;
   v_contact_id uuid;
   v_membership_id uuid;
@@ -305,8 +306,11 @@ begin
     raise exception 'Stripe event, session, and payment identifiers are required';
   end if;
   v_normalized_email := pg_catalog.lower(pg_catalog.btrim(p_email));
-  if v_normalized_email = '' then
+  if coalesce(v_normalized_email, '') = '' then
     raise exception 'purchaser email is required';
+  end if;
+  if coalesce(pg_catalog.btrim(p_event_type), '') = '' then
+    raise exception 'Stripe event type is required';
   end if;
 
   insert into public.stripe_webhook_events (stripe_event_id, event_type)
@@ -338,6 +342,19 @@ begin
   -- fulfillment error rolls back only the nested work, then is recorded on
   -- the already-claimed event by the nested exception handler below.
   begin
+  select cohort_id into v_cohort_id
+  from public.founding_reservations
+  where stripe_session_id = p_stripe_session_id;
+  if found then
+    select * into v_cohort
+    from public.founding_cohorts
+    where id = v_cohort_id
+    for update;
+    if not found then
+      raise exception 'reservation cohort is unavailable';
+    end if;
+  end if;
+
   select * into v_reservation
   from public.founding_reservations
   where stripe_session_id = p_stripe_session_id
@@ -345,15 +362,30 @@ begin
   if not found then
     -- A known payment/customer with a different session is a linkage
     -- mismatch, not a new checkout. Hold it for operator review.
-    select * into v_reservation
+    select cohort_id into v_cohort_id
     from public.founding_reservations
     where (stripe_payment_intent_id = p_payment_intent_id)
        or (p_stripe_customer_id is not null
            and stripe_customer_id = p_stripe_customer_id)
     order by purchased_at desc nulls last
-    limit 1
-    for update;
+    limit 1;
     if found then
+      select * into v_cohort
+      from public.founding_cohorts
+      where id = v_cohort_id
+      for update;
+      if not found then
+        raise exception 'reservation cohort is unavailable';
+      end if;
+      select * into v_reservation
+      from public.founding_reservations
+      where cohort_id = v_cohort_id
+        and ((stripe_payment_intent_id = p_payment_intent_id)
+          or (p_stripe_customer_id is not null
+              and stripe_customer_id = p_stripe_customer_id))
+      order by purchased_at desc nulls last
+      limit 1
+      for update;
       update public.founding_reservations
       set state = 'MANUAL_REVIEW', updated_at = pg_catalog.now()
       where reservation_id = v_reservation.reservation_id;
@@ -370,14 +402,6 @@ begin
     where id = v_event.id;
     return query select null::uuid, null::uuid, null::uuid, 'FAILED';
     return;
-  end if;
-
-  select * into v_cohort
-  from public.founding_cohorts
-  where id = v_reservation.cohort_id
-  for share;
-  if not found then
-    raise exception 'reservation cohort is unavailable';
   end if;
 
   if (v_reservation.stripe_payment_intent_id is not null
@@ -531,10 +555,27 @@ set search_path = ''
 as $function$
 declare
   v_reservation public.founding_reservations%rowtype;
+  v_cohort public.founding_cohorts%rowtype;
+  v_cohort_id uuid;
   v_expiry timestamptz;
 begin
   if coalesce(pg_catalog.btrim(p_stripe_session_id), '') = '' then
     raise exception 'Stripe Checkout Session is required';
+  end if;
+
+  select cohort_id into v_cohort_id
+  from public.founding_reservations
+  where reservation_id = p_reservation_id;
+  if not found then
+    raise exception 'reservation is unavailable';
+  end if;
+
+  select * into v_cohort
+  from public.founding_cohorts
+  where id = v_cohort_id
+  for update;
+  if not found then
+    raise exception 'reservation cohort is unavailable';
   end if;
 
   select * into v_reservation
@@ -582,8 +623,26 @@ security definer
 set search_path = ''
 as $function$
 declare
+  v_cohort public.founding_cohorts%rowtype;
+  v_cohort_id uuid;
   v_updated integer;
 begin
+  select cohort_id into v_cohort_id
+  from public.founding_reservations
+  where reservation_id = p_reservation_id
+    and stripe_session_id = p_stripe_session_id;
+  if not found then
+    return false;
+  end if;
+
+  select * into v_cohort
+  from public.founding_cohorts
+  where id = v_cohort_id
+  for update;
+  if not found then
+    return false;
+  end if;
+
   update public.founding_reservations
   set state = 'EXPIRED', expired_at = pg_catalog.now(), updated_at = pg_catalog.now()
   where reservation_id = p_reservation_id

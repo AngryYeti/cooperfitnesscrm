@@ -71,8 +71,33 @@ test("private state-machine functions are transactional and fail closed", () => 
   has(/create or replace function public\.fulfill_founding_checkout[\s\S]*stripe_payment_intent_id[\s\S]*MANUAL_REVIEW/is, "payment linkage mismatches must fail closed");
   has(/create or replace function public\.fulfill_founding_checkout[\s\S]*stripe_session_id[\s\S]*linkage mismatch[\s\S]*MANUAL_REVIEW/is, "session linkage mismatches must go to manual review");
   has(/create or replace function public\.fulfill_founding_checkout[\s\S]*begin[\s\S]*exception when others[\s\S]*stripe_webhook_events[\s\S]*FAILED/is, "fulfillment failures must preserve a failed event claim");
+  has(/create or replace function public\.fulfill_founding_checkout[\s\S]*coalesce\(v_normalized_email, ''\)\s*=\s*''/is, "fulfillment must reject null or blank purchaser email");
+  has(/create or replace function public\.fulfill_founding_checkout[\s\S]*coalesce\(pg_catalog\.btrim\(p_event_type\), ''\)\s*=\s*''/is, "fulfillment must reject null or blank event type");
+  const fulfillmentStart = sql.search(/create or replace function public\.fulfill_founding_checkout/i);
+  const fulfillmentBody = sql.slice(fulfillmentStart, sql.indexOf("$function$;", fulfillmentStart));
+  assert.ok(fulfillmentBody.indexOf("coalesce(v_normalized_email, '')") < fulfillmentBody.indexOf("insert into public.stripe_webhook_events"), "email validation must precede event claim");
+  assert.ok(fulfillmentBody.indexOf("coalesce(pg_catalog.btrim(p_event_type), '')") < fulfillmentBody.indexOf("insert into public.stripe_webhook_events"), "event type validation must precede event claim");
   has(/create or replace function public\.get_founding_inventory_state[\s\S]*returns table\s*\(\s*state text[\s\S]*'OPEN'[\s\S]*'HELD'[\s\S]*'FULL'|create or replace function public\.get_founding_inventory_state[\s\S]*'FULL'[\s\S]*'HELD'[\s\S]*'OPEN'/is, "inventory projection must be non-sensitive and state-limited");
   has(/get_founding_inventory_state[\s\S]*'FULL'[\s\S]*0::integer[\s\S]*where not exists/is, "unknown campaigns must fail closed deterministically");
+});
+
+test("state-machine functions take cohort locks before reservation locks", () => {
+  for (const functionName of [
+    "create_founding_reservation",
+    "attach_founding_checkout_session",
+    "release_founding_reservation",
+    "fulfill_founding_checkout",
+  ]) {
+    const functionStart = sql.search(new RegExp(`create or replace function public\\.${functionName}`, "i"));
+    const functionBody = sql.slice(functionStart, sql.indexOf("$function$;", functionStart));
+    const cohortLock = functionBody.search(/from public\.founding_cohorts[\s\S]*for update/i);
+    const reservationLock = ["create_founding_reservation", "release_founding_reservation"].includes(functionName)
+      ? functionBody.search(/update public\.founding_reservations/i)
+      : functionBody.indexOf("for update", cohortLock + 1);
+    assert.notEqual(cohortLock, -1, `${functionName} must lock its cohort`);
+    assert.notEqual(reservationLock, -1, `${functionName} must lock its reservation`);
+    assert.ok(cohortLock < reservationLock, `${functionName} must lock cohort before reservation`);
+  }
 });
 
 test("capacity and idempotency are enforced by database constraints", () => {
