@@ -76,6 +76,7 @@ create table if not exists public.founding_memberships (
   cohort_tag text not null,
   service_start_at timestamptz not null,
   service_end_at timestamptz not null,
+  check (service_end_at > service_start_at),
   service_timezone text not null default 'America/Toronto',
   lifecycle_state text not null default 'ACTIVE'
     check (lifecycle_state in ('ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED')),
@@ -240,25 +241,31 @@ language sql
 security definer
 set search_path = ''
 as $function$
-  select case
-    when c.manual_full or not c.checkout_enabled or counts.purchased_count >= c.capacity then 'FULL'
-    when counts.pending_count > 0 then 'HELD'
-    else 'OPEN'
-  end as state,
-  counts.purchased_count,
-  counts.pending_count,
-  c.capacity
-  from public.founding_cohorts as c
-  cross join lateral (
-    select
-      pg_catalog.count(*) filter (where r.state = 'PURCHASED')::integer as purchased_count,
-      pg_catalog.count(*) filter (where r.state = 'PENDING_CHECKOUT'
-        and r.hold_expires_at > pg_catalog.now())::integer as pending_count
-    from public.founding_reservations as r
-    where r.cohort_id = c.id
-  ) as counts
-  where c.campaign_key = p_campaign_key
-  limit 1;
+  with selected as (
+    select case
+      when c.manual_full or not c.checkout_enabled or counts.purchased_count >= c.capacity then 'FULL'
+      when counts.pending_count > 0 then 'HELD'
+      else 'OPEN'
+    end as state,
+    counts.purchased_count,
+    counts.pending_count,
+    c.capacity
+    from public.founding_cohorts as c
+    cross join lateral (
+      select
+        pg_catalog.count(*) filter (where r.state = 'PURCHASED')::integer as purchased_count,
+        pg_catalog.count(*) filter (where r.state = 'PENDING_CHECKOUT'
+          and r.hold_expires_at > pg_catalog.now())::integer as pending_count
+      from public.founding_reservations as r
+      where r.cohort_id = c.id
+    ) as counts
+    where c.campaign_key = p_campaign_key
+    limit 1
+  )
+  select * from selected
+  union all
+  select 'FULL', 0::integer, 0::integer, 0::integer
+  where not exists (select 1 from selected);
 $function$;
 
 create or replace function public.fulfill_founding_checkout(
@@ -283,6 +290,8 @@ as $function$
 declare
   v_event public.stripe_webhook_events%rowtype;
   v_reservation public.founding_reservations%rowtype;
+  v_cohort public.founding_cohorts%rowtype;
+  v_existing_membership public.founding_memberships%rowtype;
   v_contact_id uuid;
   v_membership_id uuid;
   v_normalized_email text;
@@ -325,16 +334,91 @@ begin
       updated_at = pg_catalog.now()
   where id = v_event.id;
 
+  -- Keep the durable RECEIVED/PROCESSING claim outside this savepoint. Any
+  -- fulfillment error rolls back only the nested work, then is recorded on
+  -- the already-claimed event by the nested exception handler below.
+  begin
   select * into v_reservation
   from public.founding_reservations
   where stripe_session_id = p_stripe_session_id
   for update;
   if not found then
+    -- A known payment/customer with a different session is a linkage
+    -- mismatch, not a new checkout. Hold it for operator review.
+    select * into v_reservation
+    from public.founding_reservations
+    where (stripe_payment_intent_id = p_payment_intent_id)
+       or (p_stripe_customer_id is not null
+           and stripe_customer_id = p_stripe_customer_id)
+    order by purchased_at desc nulls last
+    limit 1
+    for update;
+    if found then
+      update public.founding_reservations
+      set state = 'MANUAL_REVIEW', updated_at = pg_catalog.now()
+      where reservation_id = v_reservation.reservation_id;
+      update public.stripe_webhook_events
+      set processing_state = 'FAILED', error_summary = 'Stripe Checkout Session linkage mismatch',
+          reservation_id = v_reservation.reservation_id, updated_at = pg_catalog.now()
+      where id = v_event.id;
+      return query select v_reservation.reservation_id, null::uuid, null::uuid, 'MANUAL_REVIEW';
+      return;
+    end if;
     update public.stripe_webhook_events
     set processing_state = 'FAILED', error_summary = 'matching reservation/session not found',
         next_attempt_at = pg_catalog.now() + interval '5 minutes', updated_at = pg_catalog.now()
     where id = v_event.id;
     return query select null::uuid, null::uuid, null::uuid, 'FAILED';
+    return;
+  end if;
+
+  select * into v_cohort
+  from public.founding_cohorts
+  where id = v_reservation.cohort_id
+  for share;
+  if not found then
+    raise exception 'reservation cohort is unavailable';
+  end if;
+
+  if (v_reservation.stripe_payment_intent_id is not null
+      and v_reservation.stripe_payment_intent_id <> p_payment_intent_id)
+     or (v_reservation.stripe_customer_id is not null
+      and v_reservation.stripe_customer_id is distinct from p_stripe_customer_id) then
+    update public.founding_reservations
+    set state = 'MANUAL_REVIEW', updated_at = pg_catalog.now()
+    where reservation_id = v_reservation.reservation_id;
+    update public.stripe_webhook_events
+    set processing_state = 'FAILED', error_summary = 'Stripe payment or customer linkage mismatch',
+        reservation_id = v_reservation.reservation_id, updated_at = pg_catalog.now()
+    where id = v_event.id;
+    return query select v_reservation.reservation_id, null::uuid, null::uuid, 'MANUAL_REVIEW';
+    return;
+  end if;
+
+  select * into v_existing_membership
+  from public.founding_memberships
+  where reservation_id = v_reservation.reservation_id
+  for update;
+  if found then
+    if v_existing_membership.stripe_session_id <> p_stripe_session_id
+       or v_existing_membership.stripe_payment_intent_id <> p_payment_intent_id
+       or v_reservation.state <> 'PURCHASED' then
+      update public.founding_reservations
+      set state = 'MANUAL_REVIEW', updated_at = pg_catalog.now()
+      where reservation_id = v_reservation.reservation_id;
+      update public.stripe_webhook_events
+      set processing_state = 'FAILED', error_summary = 'existing membership linkage mismatch',
+          reservation_id = v_reservation.reservation_id, updated_at = pg_catalog.now()
+      where id = v_event.id;
+      return query select v_reservation.reservation_id, null::uuid, null::uuid, 'MANUAL_REVIEW';
+      return;
+    end if;
+    update public.stripe_webhook_events
+    set processing_state = 'PROCESSED', reservation_id = v_reservation.reservation_id,
+        processed_at = pg_catalog.now(), updated_at = pg_catalog.now()
+    where id = v_event.id;
+    return query select v_reservation.reservation_id, v_existing_membership.contact_id,
+      v_existing_membership.id, 'REPLAYED';
     return;
   end if;
 
@@ -377,7 +461,7 @@ begin
     cohort_tag, service_start_at, service_end_at, service_timezone
   ) values (
     v_reservation.reservation_id, p_stripe_session_id, p_payment_intent_id, v_contact_id,
-    'founding', v_paid_at, v_service_end, 'America/Toronto'
+    'founding', v_paid_at, v_service_end, v_cohort.service_timezone
   )
   on conflict (reservation_id) do update set updated_at = pg_catalog.now()
   returning id into v_membership_id;
@@ -426,7 +510,9 @@ exception when others then
   set processing_state = 'FAILED', error_summary = pg_catalog.left(sqlerrm, 500),
       next_attempt_at = pg_catalog.now() + interval '5 minutes', updated_at = pg_catalog.now()
   where stripe_event_id = p_stripe_event_id;
-  raise;
+  return query select null::uuid, null::uuid, null::uuid, 'FAILED';
+  return;
+end;
 end;
 $function$;
 
