@@ -69,7 +69,7 @@ declare
 begin
   if pg_catalog.btrim(coalesce(p_campaign_key, '')) <> 'founding-fathers-2026'
      or v_operator = ''
-     or p_confirmation_token <> 'I_HAVE_VERIFIED_EMAIL_NOT_SENT' then
+     or p_confirmation_token is distinct from 'I_HAVE_VERIFIED_EMAIL_NOT_SENT' then
     raise exception 'founding PROCESSING recovery confirmation is invalid';
   end if;
 

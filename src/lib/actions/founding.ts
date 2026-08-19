@@ -199,6 +199,7 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
     const reservationIds = reservations.map((row) => row.reservation_id);
 
     const memberships: Array<{
+      id: string;
       reservation_id: string;
       contact_id: string;
       service_start_at: string;
@@ -230,7 +231,7 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
       const [membershipResult, outboxResult, eventsResult] = await Promise.all([
         client
           .from("founding_memberships")
-          .select("reservation_id,contact_id,service_start_at,service_end_at,service_timezone,lifecycle_state,contacts(id,first_name,last_name,email)")
+          .select("id,reservation_id,contact_id,service_start_at,service_end_at,service_timezone,lifecycle_state,contacts(id,first_name,last_name,email)")
           .in("reservation_id", reservationIds),
         client
           .from("email_outbox")
@@ -256,6 +257,21 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
       const reservationId = valueFromPayload(job.payload, "reservation_id");
       if (reservationId && reservationIds.includes(reservationId) && !outboxByReservation.has(reservationId)) {
         outboxByReservation.set(reservationId, job);
+      }
+    }
+    const recoveryJobByReservation = new Map<string, (typeof outbox)[number]>();
+    for (const job of outbox) {
+      const reservationId = valueFromPayload(job.payload, "reservation_id");
+      const membership = reservationId ? membershipByReservation.get(reservationId) : null;
+      if (
+        reservationId &&
+        job.state === "PROCESSING" &&
+        membership &&
+        valueFromPayload(job.payload, "membership_id") === membership.id &&
+        valueFromPayload(job.payload, "contact_id") === membership.contact_id &&
+        !recoveryJobByReservation.has(reservationId)
+      ) {
+        recoveryJobByReservation.set(reservationId, job);
       }
     }
     const eventErrorByReservation = new Map<string, string>();
@@ -295,6 +311,7 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
       const state = stateOf(row.state);
       const membership = membershipByReservation.get(row.reservation_id);
       const job = outboxByReservation.get(row.reservation_id);
+      const recoveryJob = recoveryJobByReservation.get(row.reservation_id);
       const contact = membership
         ? Array.isArray(membership.contacts)
           ? membership.contacts[0] ?? null
@@ -314,8 +331,10 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
         emailAttempts: Number(job?.attempts ?? 0),
         emailNextAttemptAt: job?.next_attempt_at ?? null,
         emailProcessingSince: job?.state === "PROCESSING" ? job.updated_at : null,
-        emailRecoveryEligible: job?.state === "PROCESSING"
-          && Date.parse(job.updated_at) <= Date.now() - FOUNDING_EMAIL_RECOVERY_AGE_MS,
+        emailRecoveryEligible: state === "PURCHASED"
+          && Boolean(membership)
+          && Boolean(recoveryJob)
+          && Date.parse(recoveryJob?.updated_at ?? "") <= Date.now() - FOUNDING_EMAIL_RECOVERY_AGE_MS,
         contact: contact
           ? {
               id: contact.id,

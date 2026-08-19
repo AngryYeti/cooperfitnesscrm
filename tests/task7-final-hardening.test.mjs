@@ -61,17 +61,39 @@ test("stale PROCESSING email recovery is explicit, linked, audited, and operator
   assert.match(migration, /email_outbox[\s\S]*state\s*=\s*'PROCESSING'[\s\S]*payload[\s\S]*membership_id/i);
   assert.match(migration, /insert into public\.activities/);
   assert.match(migration, /I_HAVE_VERIFIED_EMAIL_NOT_SENT/);
+  assert.match(migration, /p_confirmation_token\s+is distinct from\s*'I_HAVE_VERIFIED_EMAIL_NOT_SENT'/i);
+  assert.doesNotMatch(migration, /p_confirmation_token\s*<>\s*'I_HAVE_VERIFIED_EMAIL_NOT_SENT'/i);
   assert.match(migration, /grant execute on function public\.recover_founding_processing_email[\s\S]*to service_role/i);
   assert.match(actions, /recoverFoundingProcessingEmail/);
   assert.match(actions, /FOUNDING_EMAIL_RECOVERY_CONFIRMATION/);
   assert.match(actions, /FOUNDING_EMAIL_RECOVERY_AGE_MS\s*=\s*30\s*\*\s*60\s*\*\s*1000/);
-  assert.match(actions, /emailRecoveryEligible[\s\S]*Date\.parse\(job\.updated_at\)/);
+  assert.match(actions, /emailRecoveryEligible[\s\S]*Date\.parse\(recoveryJob\?\.updated_at/);
+  assert.match(actions, /emailRecoveryEligible[\s\S]*state === "PURCHASED"/);
+  assert.match(actions, /payload[\s\S]*membership_id[\s\S]*membership\.id/);
+  assert.match(actions, /payload[\s\S]*contact_id[\s\S]*membership\.contact_id/);
   assert.match(types, /FOUNDING_EMAIL_RECOVERY_CONFIRMATION\s*=\s*["']I_HAVE_VERIFIED_EMAIL_NOT_SENT["']/);
   assert.match(actions, /requireOperator/);
   assert.match(dashboard, /emailRecoveryEligible/);
   assert.match(dashboard, /FOUNDING_EMAIL_RECOVERY_CONFIRMATION/);
   assert.match(dashboard, /placeholder=\{FOUNDING_EMAIL_RECOVERY_CONFIRMATION\}/);
   assert.match(dashboard, /Recover email/);
+});
+
+test("NULL recovery confirmation is rejected by the database-boundary predicate", () => {
+  const migration = read("supabase/migrations/20260822100000_task7_fix_round2.sql");
+  const predicate = migration.match(/or p_confirmation_token[^\n]+/i)?.[0] ?? "";
+  assert.match(predicate, /is distinct from/i);
+  assert.doesNotMatch(predicate, /<>/);
+});
+
+test("recovery UI eligibility excludes unlinked and non-purchased jobs", () => {
+  const actions = read("src/lib/actions/founding.ts");
+  assert.match(actions, /emailRecoveryEligible:\s*state\s*===\s*"PURCHASED"/);
+  assert.match(actions, /Boolean\(membership\)/);
+  assert.match(actions, /Boolean\(recoveryJob\)/);
+  assert.match(actions, /valueFromPayload\(job\.payload, "membership_id"\) === membership\.id/);
+  assert.match(actions, /valueFromPayload\(job\.payload, "contact_id"\) === membership\.contact_id/);
+  assert.match(actions, /recoveryJobByReservation/);
 });
 
 test("dashboard occupied summary includes manual review", () => {
