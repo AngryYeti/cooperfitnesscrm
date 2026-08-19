@@ -59,7 +59,6 @@ export interface ValidatedPaidSession {
   reservationId: string;
   amountCents: number;
   currency: string;
-  paidAt: string;
 }
 
 function stringValue(value: unknown): string | null {
@@ -130,12 +129,16 @@ export async function retrieveAndValidatePaidSession(
     reservationId,
     amountCents: config.expectedAmountCents,
     currency: config.expectedCurrency,
-    paidAt: new Date((session.created || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
   };
 }
 
 export function getSessionReservationId(session: Stripe.Checkout.Session, campaignKey: string): string | null {
-  if (session.metadata?.campaign_key !== campaignKey) return null;
+  if (
+    session.metadata?.campaign_key !== campaignKey ||
+    session.metadata?.campaign !== "founding-fathers-2026" ||
+    session.metadata?.offer !== "six-month-coaching" ||
+    session.metadata?.cohort !== "founding"
+  ) return null;
   const reservationId = stringValue(session.metadata?.reservation_id);
   return reservationId && session.client_reference_id === reservationId ? reservationId : null;
 }

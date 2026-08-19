@@ -20,6 +20,14 @@ export async function fulfillCompletedFoundingSession(
   const config = getFoundingConfig();
   const session = event.data.object as Stripe.Checkout.Session;
   try {
+    if (!Number.isSafeInteger(event.created) || event.created <= 0) {
+      throw new FoundingSessionValidationError("Founding completion timestamp is invalid");
+    }
+    const completedAtDate = new Date(event.created * 1000);
+    if (!Number.isFinite(completedAtDate.getTime())) {
+      throw new FoundingSessionValidationError("Founding completion timestamp is invalid");
+    }
+    const completedAt = completedAtDate.toISOString();
     const paid = await retrieveAndValidatePaidSession(stripe, session.id, config);
     const result = await fulfillFoundingCheckout({
       campaignKey: config.campaignKey,
@@ -35,7 +43,7 @@ export async function fulfillCompletedFoundingSession(
       lastName: paid.lastName,
       amountCents: paid.amountCents,
       currency: paid.currency,
-      paidAt: paid.paidAt,
+      paidAt: completedAt,
     });
     if (!result) throw new Error("Founding fulfillment returned no result");
     if (result.result === "FAILED") {

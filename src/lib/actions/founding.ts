@@ -150,7 +150,7 @@ type DashboardReservation = {
 };
 
 function reservationRank(row: DashboardReservation): [number, string, string, string] {
-  const activeRank = row.state === "PURCHASED" || row.state === "PENDING_CHECKOUT" ? 0 : 1;
+  const activeRank = row.state === "PURCHASED" || row.state === "PENDING_CHECKOUT" || row.state === "MANUAL_REVIEW" ? 0 : 1;
   return [activeRank, row.updated_at || "", row.created_at || "", row.reservation_id];
 }
 

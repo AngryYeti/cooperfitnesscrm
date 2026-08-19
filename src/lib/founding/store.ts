@@ -191,13 +191,6 @@ export async function markFoundingSessionManualReview(
 
 export async function claimEmailOutboxJobs(limit = 10): Promise<OutboxJob[]> {
   const client = createAdminClient();
-  const staleBefore = new Date(Date.now() - 15 * 60_000).toISOString();
-  const recovered = await client.from("email_outbox").update({
-    state: "PENDING",
-    next_attempt_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }).eq("state", "PROCESSING").lt("updated_at", staleBefore);
-  throwIfError(recovered.error);
   const { data, error } = await client
     .from("email_outbox")
     .select("id,dedupe_key,template,recipient,payload,state,attempts")
