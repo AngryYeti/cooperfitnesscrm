@@ -65,6 +65,7 @@ export async function updateSession(request: NextRequest) {
   const publicServerRoutes = new Set([
     "/api/founding/inventory",
     "/api/founding/checkout-session",
+    "/api/founding/session-status",
     "/api/founding/email-outbox",
     "/api/webhooks/stripe/founding",
     // Existing webhook and scheduled routes remain public; each validates

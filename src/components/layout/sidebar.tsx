@@ -30,8 +30,11 @@ const navItems = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isFoundingOperator = false }: { isFoundingOperator?: boolean }) {
   const pathname = usePathname();
+  const visibleNavItems = navItems.filter(
+    (item) => item.href !== "/founding" || isFoundingOperator,
+  );
 
   return (
     <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 bg-sidebar text-sidebar-foreground">
@@ -59,7 +62,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 pb-3 space-y-0.5">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (

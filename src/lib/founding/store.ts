@@ -27,6 +27,53 @@ export async function getFoundingInventory(campaignKey: string): Promise<Invento
   };
 }
 
+export type FoundingSessionStatus = "FULFILLED" | "PROCESSING" | "NOT_FOUND";
+
+export async function getFoundingSessionStatus(
+  campaignKey: string,
+  sessionId: string,
+): Promise<FoundingSessionStatus> {
+  const client = createAdminClient();
+  const { data: cohort, error: cohortError } = await client
+    .from("founding_cohorts")
+    .select("id")
+    .eq("campaign_key", campaignKey)
+    .maybeSingle();
+  throwIfError(cohortError);
+  if (!cohort) return "NOT_FOUND";
+
+  const { data: reservation, error: reservationError } = await client
+    .from("founding_reservations")
+    .select("reservation_id,state")
+    .eq("cohort_id", cohort.id)
+    .eq("stripe_session_id", sessionId)
+    .maybeSingle();
+  throwIfError(reservationError);
+  if (!reservation) return "NOT_FOUND";
+
+  const [membership, processedEvent] = await Promise.all([
+    client
+      .from("founding_memberships")
+      .select("id")
+      .eq("reservation_id", reservation.reservation_id)
+      .maybeSingle(),
+    client
+      .from("stripe_webhook_events")
+      .select("id")
+      .eq("reservation_id", reservation.reservation_id)
+      .eq("event_type", "checkout.session.completed")
+      .eq("processing_state", "PROCESSED")
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  throwIfError(membership.error);
+  throwIfError(processedEvent.error);
+  if (reservation.state === "PURCHASED" && membership.data && processedEvent.data) {
+    return "FULFILLED";
+  }
+  return "PROCESSING";
+}
+
 export async function reserveFoundingCapacity(input: {
   campaignKey: string;
   email: string;

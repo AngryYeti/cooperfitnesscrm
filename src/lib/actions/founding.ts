@@ -12,6 +12,7 @@ import type {
 } from "@/lib/types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Operator = { id: string; email: string };
 type Cohort = {
@@ -47,13 +48,34 @@ function validId(value: string, label: string): string {
   return value;
 }
 
-async function requireOperator(): Promise<Operator> {
+function configuredOperatorEmails(): Set<string> {
+  const raw = process.env.FOUNDING_OPERATOR_EMAILS?.trim();
+  if (!raw) return new Set();
+  const values = raw.split(",").map((value) => value.trim().toLowerCase());
+  if (values.some((value) => !EMAIL_PATTERN.test(value) || value.length > 254)) return new Set();
+  return new Set(values);
+}
+
+async function authenticatedOperator(): Promise<Operator | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user?.id || !data.user.email) {
+    return null;
+  }
+  return { id: data.user.id, email: data.user.email.trim().toLowerCase() };
+}
+
+export async function isFoundingOperator(): Promise<boolean> {
+  const operator = await authenticatedOperator();
+  return Boolean(operator && configuredOperatorEmails().has(operator.email));
+}
+
+async function requireOperator(): Promise<Operator> {
+  const operator = await authenticatedOperator();
+  if (!operator || !configuredOperatorEmails().has(operator.email)) {
     return operationFailure("Not authorized");
   }
-  return { id: data.user.id, email: data.user.email };
+  return operator;
 }
 
 async function getCampaign(client: ReturnType<typeof createAdminClient>): Promise<Cohort> {
@@ -116,6 +138,45 @@ function fulfillmentStateOf(
   return "NOT_STARTED";
 }
 
+type DashboardReservation = {
+  reservation_id: string;
+  position_number: number;
+  state: string;
+  hold_expires_at: string | null;
+  purchased_at: string | null;
+  created_at: string;
+  updated_at: string;
+  cohort_id: string;
+};
+
+function reservationRank(row: DashboardReservation): [number, string, string, string] {
+  const activeRank = row.state === "PURCHASED" || row.state === "PENDING_CHECKOUT" ? 0 : 1;
+  return [activeRank, row.updated_at || "", row.created_at || "", row.reservation_id];
+}
+
+function selectAuthoritativeReservations(rows: DashboardReservation[]): DashboardReservation[] {
+  const selected = new Map<number, DashboardReservation>();
+  for (const row of rows) {
+    const current = selected.get(Number(row.position_number));
+    if (!current) {
+      selected.set(Number(row.position_number), row);
+      continue;
+    }
+    const next = reservationRank(row);
+    const previous = reservationRank(current);
+    if (
+      next[0] < previous[0] ||
+      (next[0] === previous[0] &&
+        (next[1] > previous[1] ||
+          (next[1] === previous[1] &&
+            (next[2] > previous[2] || (next[2] === previous[2] && next[3] > previous[3])))))
+    ) {
+      selected.set(Number(row.position_number), row);
+    }
+  }
+  return [...selected.values()];
+}
+
 export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
   await requireOperator();
   const client = createAdminClient();
@@ -123,19 +184,16 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
     const cohort = await getCampaign(client);
     const reservationsResult = await client
       .from("founding_reservations")
-      .select("reservation_id,position_number,state,hold_expires_at,purchased_at,cohort_id")
+      .select("reservation_id,position_number,state,hold_expires_at,purchased_at,created_at,updated_at,cohort_id")
       .eq("cohort_id", cohort.id)
-      .order("position_number", { ascending: true });
+      .order("position_number", { ascending: true })
+      .order("updated_at", { ascending: false })
+      .order("created_at", { ascending: false });
     if (reservationsResult.error) return databaseFailure("Founding dashboard unavailable");
 
-    const reservations = (reservationsResult.data ?? []) as Array<{
-      reservation_id: string;
-      position_number: number;
-      state: string;
-      hold_expires_at: string | null;
-      purchased_at: string | null;
-      cohort_id: string;
-    }>;
+    const reservations = selectAuthoritativeReservations(
+      (reservationsResult.data ?? []) as DashboardReservation[],
+    );
     const reservationIds = reservations.map((row) => row.reservation_id);
 
     const memberships: Array<{
@@ -283,123 +341,52 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
 }
 
 export async function setFoundingCheckoutClosed(closed: boolean) {
-  await requireOperator();
+  const operator = await requireOperator();
   if (typeof closed !== "boolean") return operationFailure("Invalid checkout state");
   const client = createAdminClient();
-  const cohort = await getCampaign(client);
-  const { data, error } = await client
-    .from("founding_cohorts")
-    .update({ manual_full: closed, updated_at: new Date().toISOString() })
-    .eq("id", cohort.id)
-    .eq("campaign_key", campaignKey())
-    .select("manual_full")
-    .maybeSingle();
-  if (error || !data) return databaseFailure("Unable to update founding checkout state");
-  await client.from("activities").insert({
-    type: "contact_updated",
-    contact_id: null,
-    contact_name: null,
-    description: `Founding checkout ${closed ? "closed" : "reopened"} by operator`,
+  const { data, error } = await client.rpc("set_founding_checkout_state", {
+    p_campaign_key: campaignKey(),
+    p_closed: closed,
+    p_operator_email: operator.email,
   });
+  if (error) return databaseFailure("Unable to update founding checkout state");
+  const result = (Array.isArray(data) ? data[0] : data) as { manual_full?: boolean } | null;
+  if (!result || typeof result.manual_full !== "boolean") return databaseFailure("Unable to update founding checkout state");
   revalidatePath("/founding");
-  return { manualFull: Boolean(data.manual_full) };
+  return { manualFull: result.manual_full };
 }
 
 export async function retryFoundingEmail(reservationId: string) {
-  await requireOperator();
+  const operator = await requireOperator();
   const id = validId(reservationId, "reservation");
   const client = createAdminClient();
-  const cohort = await getCampaign(client);
-  const { data: reservation, error: reservationError } = await client
-    .from("founding_reservations")
-    .select("reservation_id,cohort_id")
-    .eq("reservation_id", id)
-    .eq("cohort_id", cohort.id)
-    .maybeSingle();
-  if (reservationError || !reservation) return operationFailure("Founding reservation not found");
-  const { data: jobs, error: jobError } = await client
-    .from("email_outbox")
-    .select("id,state,attempts,payload")
-    .eq("template", "founding_welcome");
-  const job = ((jobs ?? []) as Array<{ id: string; state: string; attempts: number; payload: unknown }>).find(
-    (candidate) => valueFromPayload(candidate.payload, "reservation_id") === id,
-  );
-  if (jobError || !job) return operationFailure("Onboarding email job not found");
-  if (job.state !== "FAILED" && job.state !== "PENDING") {
-    return operationFailure("Only pending or failed onboarding emails can be retried");
-  }
-  const { data, error } = await client
-    .from("email_outbox")
-    .update({
-      state: "PENDING",
-      next_attempt_at: new Date().toISOString(),
-      last_error_at: null,
-      last_error: null,
-      updated_at: new Date().toISOString(),
-  })
-    .eq("id", job.id)
-    .eq("template", "founding_welcome")
-    .eq("payload->>reservation_id", id)
-    .eq("state", job.state)
-    .select("id,state")
-    .maybeSingle();
-  if (error || !data) return databaseFailure("Unable to retry onboarding email");
-  await client.from("activities").insert({
-    type: "contact_updated",
-    contact_id: null,
-    contact_name: null,
-    description: "Founding onboarding email requeued by operator",
+  const { data, error } = await client.rpc("retry_founding_email", {
+    p_campaign_key: campaignKey(),
+    p_reservation_id: id,
+    p_operator_email: operator.email,
   });
+  if (error) return databaseFailure("Unable to retry onboarding email");
+  const result = (Array.isArray(data) ? data[0] : data) as { reservation_id?: string; state?: string } | null;
+  if (!result || result.reservation_id !== id || result.state !== "PENDING") return databaseFailure("Unable to retry onboarding email");
   revalidatePath("/founding");
   return { reservationId: id, state: "PENDING" as const };
 }
 
 export async function markFoundingManualReview(reservationId: string, reason: string) {
-  await requireOperator();
+  const operator = await requireOperator();
   const id = validId(reservationId, "reservation");
   const cleanReason = safeManualReason(reason);
   if (!cleanReason || cleanReason.length < 3) return operationFailure("A review reason is required");
   const client = createAdminClient();
-  const cohort = await getCampaign(client);
-  const { data: reservation, error: reservationError } = await client
-    .from("founding_reservations")
-    .select("reservation_id,cohort_id,position_number,state")
-    .eq("reservation_id", id)
-    .eq("cohort_id", cohort.id)
-    .maybeSingle();
-  if (reservationError || !reservation) return operationFailure("Founding reservation not found");
-  if (reservation.state === "PURCHASED") {
-    return operationFailure("Purchased founding memberships cannot be moved to manual review");
-  }
-  const { data: updated, error: updateError } = await client
-    .from("founding_reservations")
-    .update({ state: "MANUAL_REVIEW", updated_at: new Date().toISOString() })
-    .eq("reservation_id", id)
-    .eq("cohort_id", cohort.id)
-    .select("reservation_id,state")
-    .maybeSingle();
-  if (updateError || !updated) return databaseFailure("Unable to mark founding reservation for review");
-
-  const eventId = `operator_review:${id}`;
-  const { error: eventError } = await client.from("stripe_webhook_events").upsert(
-    {
-      stripe_event_id: eventId,
-      event_type: "operator.manual_review",
-      processing_state: "FAILED",
-      error_summary: cleanReason,
-      reservation_id: id,
-      processed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "stripe_event_id" },
-  );
-  if (eventError) return databaseFailure("Unable to record founding review reason");
-  await client.from("activities").insert({
-    type: "contact_updated",
-    contact_id: null,
-    contact_name: null,
-    description: `Founding position ${Number(reservation.position_number)} marked for manual review: ${cleanReason}`,
+  const { data, error } = await client.rpc("mark_founding_manual_review", {
+    p_campaign_key: campaignKey(),
+    p_reservation_id: id,
+    p_reason: cleanReason,
+    p_operator_email: operator.email,
   });
+  if (error) return databaseFailure("Unable to mark founding reservation for review");
+  const result = (Array.isArray(data) ? data[0] : data) as { reservation_id?: string; state?: string; reason?: string } | null;
+  if (!result || result.reservation_id !== id || result.state !== "MANUAL_REVIEW") return databaseFailure("Unable to mark founding reservation for review");
   revalidatePath("/founding");
-  return { reservationId: updated.reservation_id as string, state: "MANUAL_REVIEW" as const, reason: cleanReason };
+  return { reservationId: id, state: "MANUAL_REVIEW" as const, reason: result.reason || cleanReason };
 }

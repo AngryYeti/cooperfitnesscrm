@@ -16,6 +16,7 @@ test("founding server modules and route handlers exist", () => {
     "src/lib/founding/welcome-email.ts",
     "src/app/api/founding/inventory/route.ts",
     "src/app/api/founding/checkout-session/route.ts",
+    "src/app/api/founding/session-status/route.ts",
     "src/app/api/webhooks/stripe/founding/route.ts",
     "src/app/api/founding/email-outbox/route.ts",
   ]) {
