@@ -62,11 +62,21 @@ export async function updateSession(request: NextRequest) {
     });
   }
 
-  const isPublicRoute =
-    request.nextUrl.pathname.startsWith("/api/webhooks") ||
-    request.nextUrl.pathname.startsWith("/api/send-reminders") ||
-    request.nextUrl.pathname.startsWith("/api/daily-calendar") ||
-    request.nextUrl.pathname.startsWith("/api/email/");
+  const publicServerRoutes = new Set([
+    "/api/founding/inventory",
+    "/api/founding/checkout-session",
+    "/api/founding/email-outbox",
+    "/api/webhooks/stripe/founding",
+    // Existing webhook and scheduled routes remain public; each validates
+    // its own provider signature or cron secret.
+    "/api/webhooks/stripe",
+    "/api/webhooks/docuseal",
+    "/api/webhooks/new-lead",
+    "/api/webhooks/zoho",
+    "/api/send-reminders",
+    "/api/daily-calendar",
+  ]);
+  const isPublicRoute = publicServerRoutes.has(request.nextUrl.pathname);
 
   const isAuthenticated = !!user || hasValidIpSession;
 
