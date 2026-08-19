@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { FOUNDING_EMAIL_RECOVERY_CONFIRMATION } from "@/lib/types";
 import type {
   FoundingDashboardData,
   FoundingDashboardPosition,
@@ -13,6 +14,7 @@ import type {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const FOUNDING_EMAIL_RECOVERY_AGE_MS = 30 * 60 * 1000;
 
 type Operator = { id: string; email: string };
 type Cohort = {
@@ -215,6 +217,7 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
       next_attempt_at: string | null;
       last_error: string | null;
       payload: unknown;
+      updated_at: string;
     }> = [];
     const events: Array<{
       reservation_id: string | null;
@@ -231,7 +234,7 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
           .in("reservation_id", reservationIds),
         client
           .from("email_outbox")
-          .select("id,state,attempts,next_attempt_at,last_error,payload")
+          .select("id,state,attempts,next_attempt_at,last_error,payload,updated_at")
           .eq("template", "founding_welcome"),
         client
           .from("stripe_webhook_events")
@@ -280,6 +283,8 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
           emailState: "NOT_QUEUED",
           emailAttempts: 0,
           emailNextAttemptAt: null,
+          emailProcessingSince: null,
+          emailRecoveryEligible: false,
           contact: null,
           serviceStartAt: null,
           serviceEndAt: null,
@@ -308,6 +313,9 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
         emailState: emailStateOf(job?.state),
         emailAttempts: Number(job?.attempts ?? 0),
         emailNextAttemptAt: job?.next_attempt_at ?? null,
+        emailProcessingSince: job?.state === "PROCESSING" ? job.updated_at : null,
+        emailRecoveryEligible: job?.state === "PROCESSING"
+          && Date.parse(job.updated_at) <= Date.now() - FOUNDING_EMAIL_RECOVERY_AGE_MS,
         contact: contact
           ? {
               id: contact.id,
@@ -329,7 +337,7 @@ export async function getFoundingDashboard(): Promise<FoundingDashboardData> {
       checkoutEnabled: cohort.checkout_enabled,
       manualFull: cohort.manual_full,
       purchasedCount: positions.filter((position) => position.state === "PURCHASED").length,
-      pendingCount: positions.filter((position) => position.state === "PENDING_CHECKOUT").length,
+      pendingCount: positions.filter((position) => position.state === "PENDING_CHECKOUT" || position.state === "MANUAL_REVIEW").length,
       positions,
     };
   } catch (error) {
@@ -368,6 +376,26 @@ export async function retryFoundingEmail(reservationId: string) {
   if (error) return databaseFailure("Unable to retry onboarding email");
   const result = (Array.isArray(data) ? data[0] : data) as { reservation_id?: string; state?: string } | null;
   if (!result || result.reservation_id !== id || result.state !== "PENDING") return databaseFailure("Unable to retry onboarding email");
+  revalidatePath("/founding");
+  return { reservationId: id, state: "PENDING" as const };
+}
+
+export async function recoverFoundingProcessingEmail(reservationId: string, confirmationToken: string) {
+  const operator = await requireOperator();
+  const id = validId(reservationId, "reservation");
+  if (confirmationToken !== FOUNDING_EMAIL_RECOVERY_CONFIRMATION) {
+    return operationFailure("Type the exact recovery confirmation before continuing");
+  }
+  const client = createAdminClient();
+  const { data, error } = await client.rpc("recover_founding_processing_email", {
+    p_campaign_key: campaignKey(),
+    p_reservation_id: id,
+    p_operator_email: operator.email,
+    p_confirmation_token: confirmationToken,
+  });
+  if (error) return databaseFailure("Unable to recover onboarding email");
+  const result = (Array.isArray(data) ? data[0] : data) as { reservation_id?: string; state?: string } | null;
+  if (!result || result.reservation_id !== id || result.state !== "PENDING") return databaseFailure("Unable to recover onboarding email");
   revalidatePath("/founding");
   return { reservationId: id, state: "PENDING" as const };
 }

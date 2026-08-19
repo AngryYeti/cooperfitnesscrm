@@ -114,6 +114,8 @@ export type FoundingEmailState =
   | "FAILED"
   | "CANCELLED";
 
+export const FOUNDING_EMAIL_RECOVERY_CONFIRMATION = "I_HAVE_VERIFIED_EMAIL_NOT_SENT";
+
 /** Dashboard-safe founding position data. Never include Stripe identifiers or payment data here. */
 export interface FoundingDashboardPosition {
   positionNumber: number;
@@ -125,6 +127,8 @@ export interface FoundingDashboardPosition {
   emailState: FoundingEmailState;
   emailAttempts: number;
   emailNextAttemptAt: string | null;
+  emailProcessingSince: string | null;
+  emailRecoveryEligible: boolean;
   contact: {
     id: string;
     firstName: string;

@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock3, Mail, ShieldAlert, Users } from "lucide-react";
 import {
   markFoundingManualReview,
+  recoverFoundingProcessingEmail,
   retryFoundingEmail,
   setFoundingCheckoutClosed,
 } from "@/lib/actions/founding";
 import type { FoundingDashboardData, FoundingDashboardPosition } from "@/lib/types";
+import { FOUNDING_EMAIL_RECOVERY_CONFIRMATION } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +51,7 @@ export function FoundingDashboard({ initialData }: { initialData: FoundingDashbo
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [reviewReasons, setReviewReasons] = useState<Record<string, string>>({});
+  const [recoveryConfirmations, setRecoveryConfirmations] = useState<Record<string, string>>({});
 
   const runAction = (action: () => Promise<unknown>) => {
     setError(null);
@@ -73,6 +76,8 @@ export function FoundingDashboard({ initialData }: { initialData: FoundingDashbo
       emailState: "NOT_QUEUED" as const,
       emailAttempts: 0,
       emailNextAttemptAt: null,
+      emailProcessingSince: null,
+      emailRecoveryEligible: false,
       contact: null,
       serviceStartAt: null,
       serviceEndAt: null,
@@ -110,7 +115,7 @@ export function FoundingDashboard({ initialData }: { initialData: FoundingDashbo
 
       <section className="grid gap-4 sm:grid-cols-3">
         <Card><CardContent className="flex items-center gap-3 p-5"><Users className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs uppercase tracking-wider text-muted-foreground">Purchased</p><p className="text-2xl font-semibold">{initialData.purchasedCount} / {initialData.capacity}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-5"><Clock3 className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs uppercase tracking-wider text-muted-foreground">Active holds</p><p className="text-2xl font-semibold">{initialData.pendingCount}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-5"><Clock3 className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs uppercase tracking-wider text-muted-foreground">Occupied holds / review</p><p className="text-2xl font-semibold">{initialData.pendingCount}</p></div></CardContent></Card>
         <Card><CardContent className="flex items-center gap-3 p-5"><ShieldAlert className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs uppercase tracking-wider text-muted-foreground">Checkout</p><p className="text-2xl font-semibold">{initialData.manualFull ? "Closed" : initialData.checkoutEnabled ? "Open" : "Disabled"}</p></div></CardContent></Card>
       </section>
 
@@ -118,6 +123,7 @@ export function FoundingDashboard({ initialData }: { initialData: FoundingDashbo
         {positions.map((position) => {
           const canRetryEmail = position.emailState === "FAILED" || position.emailState === "PENDING";
           const hasReservation = Boolean(position.reservationId);
+          const canRecoverEmail = position.emailState === "PROCESSING" && hasReservation && position.emailRecoveryEligible;
           return (
             <Card key={position.positionNumber} className="overflow-hidden">
               <CardHeader className="border-b border-border/50 pb-4">
@@ -153,6 +159,26 @@ export function FoundingDashboard({ initialData }: { initialData: FoundingDashbo
                       <Mail className="h-3.5 w-3.5" />
                       Retry email
                     </Button>
+                  )}
+                  {canRecoverEmail && (
+                    <div className="flex min-w-[280px] flex-1 flex-wrap items-center gap-2">
+                      <Input
+                        aria-label={`Recovery confirmation for position ${position.positionNumber}`}
+                        placeholder={FOUNDING_EMAIL_RECOVERY_CONFIRMATION}
+                        value={recoveryConfirmations[position.reservationId as string] || ""}
+                        onChange={(event) => setRecoveryConfirmations((current) => ({ ...current, [position.reservationId as string]: event.target.value }))}
+                        maxLength={FOUNDING_EMAIL_RECOVERY_CONFIRMATION.length}
+                      />
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={isPending || recoveryConfirmations[position.reservationId as string] !== FOUNDING_EMAIL_RECOVERY_CONFIRMATION}
+                        onClick={() => runAction(() => recoverFoundingProcessingEmail(position.reservationId as string, recoveryConfirmations[position.reservationId as string]))}
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        Recover email
+                      </Button>
+                    </div>
                   )}
                   {position.reservationId && position.state !== "MANUAL_REVIEW" && position.state !== "PURCHASED" && (
                     <div className="flex min-w-[240px] flex-1 items-center gap-2">
