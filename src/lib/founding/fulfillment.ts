@@ -1,6 +1,7 @@
 import "server-only";
 import type Stripe from "stripe";
 import { getFoundingConfig } from "./config";
+import { APPROVED_PRODUCT_ID, EXPECTED_PRICE_ID } from "./config";
 import {
   fulfillFoundingCheckout,
   markFoundingSessionManualReview,
@@ -21,6 +22,9 @@ export async function fulfillCompletedFoundingSession(
   try {
     const paid = await retrieveAndValidatePaidSession(stripe, session.id, config);
     const result = await fulfillFoundingCheckout({
+      campaignKey: config.campaignKey,
+      priceId: EXPECTED_PRICE_ID,
+      productId: APPROVED_PRODUCT_ID,
       eventId: event.id,
       eventType: event.type,
       sessionId: paid.sessionId,
@@ -36,6 +40,7 @@ export async function fulfillCompletedFoundingSession(
     if (!result) throw new Error("Founding fulfillment returned no result");
     if (result.result === "FAILED") {
       const marked = await markFoundingSessionManualReview(
+        config.campaignKey,
         session.id,
         event.id,
         "Founding fulfillment could not match a live reservation",
@@ -47,7 +52,7 @@ export async function fulfillCompletedFoundingSession(
   } catch (error) {
     if (!(error instanceof FoundingSessionValidationError)) throw error;
     const reason = error instanceof Error ? error.message : "Founding payment validation failed";
-    const marked = await markFoundingSessionManualReview(session.id, event.id, reason);
+    const marked = await markFoundingSessionManualReview(config.campaignKey, session.id, event.id, reason);
     if (!marked) throw new Error("Founding paid session requires operator review");
     return { result: "MANUAL_REVIEW", reservation_id: null, contact_id: null, membership_id: null };
   }

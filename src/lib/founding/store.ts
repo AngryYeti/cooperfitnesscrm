@@ -131,6 +131,9 @@ export async function expireUnattachedFoundingReservation(reservationId: string)
 }
 
 export async function fulfillFoundingCheckout(input: {
+  campaignKey: string;
+  priceId: string;
+  productId: string;
   eventId: string;
   eventType: string;
   sessionId: string;
@@ -144,6 +147,9 @@ export async function fulfillFoundingCheckout(input: {
   paidAt: string;
 }) {
   const { data, error } = await createAdminClient().rpc("fulfill_founding_checkout", {
+    p_campaign_key: input.campaignKey,
+    p_price_id: input.priceId,
+    p_product_id: input.productId,
     p_stripe_event_id: input.eventId,
     p_event_type: input.eventType,
     p_stripe_session_id: input.sessionId,
@@ -167,44 +173,20 @@ export async function fulfillFoundingCheckout(input: {
 }
 
 export async function markFoundingSessionManualReview(
+  campaignKey: string,
   sessionId: string,
   eventId: string,
   reason: string,
 ): Promise<boolean> {
-  const client = createAdminClient();
-  const { data: reservations, error } = await client
-    .from("founding_reservations")
-    .select("reservation_id")
-    .eq("stripe_session_id", sessionId)
-    .limit(1);
+  const { data, error } = await createAdminClient().rpc("mark_founding_session_manual_review", {
+    p_campaign_key: campaignKey,
+    p_stripe_session_id: sessionId,
+    p_stripe_event_id: eventId,
+    p_reason: reason,
+  });
   throwIfError(error);
-  const reservationId = reservations?.[0]?.reservation_id as string | undefined;
-  let marked = false;
-  if (reservationId) {
-    const result = await client
-      .from("founding_reservations")
-      .update({ state: "MANUAL_REVIEW", updated_at: new Date().toISOString() })
-      .eq("reservation_id", reservationId)
-      .eq("stripe_session_id", sessionId)
-      .in("state", ["PENDING_CHECKOUT", "EXPIRED", "MANUAL_REVIEW"])
-      .select("reservation_id")
-      .maybeSingle();
-    throwIfError(result.error);
-    marked = Boolean(result.data);
-  }
-  const result = await client.from("stripe_webhook_events").upsert(
-    {
-      stripe_event_id: eventId,
-      event_type: "checkout.session.completed",
-      processing_state: "FAILED",
-      error_summary: reason.slice(0, 500),
-      reservation_id: reservationId ?? null,
-      processed_at: new Date().toISOString(),
-    },
-    { onConflict: "stripe_event_id" },
-  );
-  throwIfError(result.error);
-  return marked;
+  const row = (Array.isArray(data) ? data[0] : data) as { reservation_id?: string | null; state?: string } | null;
+  return row?.state === "MANUAL_REVIEW";
 }
 
 export async function claimEmailOutboxJobs(limit = 10): Promise<OutboxJob[]> {

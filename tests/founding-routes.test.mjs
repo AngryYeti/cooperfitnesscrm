@@ -77,7 +77,7 @@ test("paid failures require manual review or a non-200 retry", () => {
   const webhook = text("src/app/api/webhooks/stripe/founding/route.ts");
   assert.match(fulfillment, /result\s*===\s*["']FAILED["']/);
   assert.match(fulfillment, /markFoundingSessionManualReview/);
-  assert.match(store, /state:\s*["']MANUAL_REVIEW["']/);
+  assert.match(store, /mark_founding_session_manual_review/);
   assert.match(webhook, /Webhook processing failed/);
 });
 

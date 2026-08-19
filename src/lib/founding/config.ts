@@ -3,6 +3,8 @@ import type { FoundingConfig } from "./types";
 
 const EXPECTED_PRICE_ID = "price_1U5WCxK67H8U3fOqXS60McFP";
 const APPROVED_PRODUCT_ID = "prod_V5hcsMgIEK4Srk";
+const EXPECTED_CAMPAIGN_KEY = "founding-fathers-2026";
+const EXPECTED_PRODUCT_NAME = "Cooper Fitness Founding Fathers — Six-Month Coaching";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export class FoundingConfigError extends Error {
@@ -26,7 +28,7 @@ function boolean(name: string): boolean {
   return value === "true";
 }
 
-function url(name: string): string {
+function url(name: string, options: { allowLocalHttp?: boolean } = {}): string {
   const value = required(name);
   let parsed: URL;
   try {
@@ -34,8 +36,13 @@ function url(name: string): string {
   } catch {
     throw new FoundingConfigError(`Invalid founding URL: ${name}`);
   }
-  if (parsed.protocol !== "https:") {
+  const localHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  const localHttp = options.allowLocalHttp === true && parsed.protocol === "http:" && localHost;
+  if (parsed.protocol !== "https:" && !localHttp) {
     throw new FoundingConfigError(`Founding URL must use HTTPS: ${name}`);
+  }
+  if (parsed.username || parsed.password) {
+    throw new FoundingConfigError(`Founding URL must not include credentials: ${name}`);
   }
   return parsed.toString().replace(/\/$/, "");
 }
@@ -53,8 +60,8 @@ export function getFoundingConfig(): FoundingConfig {
   const campaignEnabled = boolean("FOUNDING_CAMPAIGN_ENABLED");
   const checkoutEnabled = boolean("FOUNDING_CHECKOUT_ENABLED");
   const campaignKey = required("FOUNDING_CAMPAIGN_KEY");
-  if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(campaignKey)) {
-    throw new FoundingConfigError("Invalid founding campaign key");
+  if (campaignKey !== EXPECTED_CAMPAIGN_KEY) {
+    throw new FoundingConfigError("Founding campaign key is not the approved campaign");
   }
 
   const stripePriceId = required("FOUNDING_STRIPE_PRICE_ID");
@@ -78,7 +85,7 @@ export function getFoundingConfig(): FoundingConfig {
     throw new FoundingConfigError("Founding capacity must be exactly five");
   }
   const serviceTimezone = timezone(required("FOUNDING_SERVICE_TIMEZONE"));
-  const siteOrigin = url("FOUNDING_SITE_ORIGIN");
+  const siteOrigin = url("FOUNDING_SITE_ORIGIN", { allowLocalHttp: true });
   const internalApiSecret = required("FOUNDING_INTERNAL_API_SECRET");
   const stripeWebhookSecret = required("FOUNDING_STRIPE_WEBHOOK_SECRET");
   if (internalApiSecret.length < 32 || stripeWebhookSecret.length < 16) {
@@ -109,4 +116,4 @@ export function getFoundingConfig(): FoundingConfig {
   };
 }
 
-export { APPROVED_PRODUCT_ID, EXPECTED_PRICE_ID };
+export { APPROVED_PRODUCT_ID, EXPECTED_CAMPAIGN_KEY, EXPECTED_PRICE_ID, EXPECTED_PRODUCT_NAME };
