@@ -123,7 +123,7 @@ export async function markFoundingSessionManualReview(
   sessionId: string,
   eventId: string,
   reason: string,
-): Promise<void> {
+): Promise<boolean> {
   const client = createAdminClient();
   const { data: reservations, error } = await client
     .from("founding_reservations")
@@ -132,14 +132,18 @@ export async function markFoundingSessionManualReview(
     .limit(1);
   throwIfError(error);
   const reservationId = reservations?.[0]?.reservation_id as string | undefined;
+  let marked = false;
   if (reservationId) {
     const result = await client
       .from("founding_reservations")
       .update({ state: "MANUAL_REVIEW", updated_at: new Date().toISOString() })
       .eq("reservation_id", reservationId)
       .eq("stripe_session_id", sessionId)
-      .in("state", ["PENDING_CHECKOUT", "EXPIRED"]);
+      .in("state", ["PENDING_CHECKOUT", "EXPIRED", "MANUAL_REVIEW"])
+      .select("reservation_id")
+      .maybeSingle();
     throwIfError(result.error);
+    marked = Boolean(result.data);
   }
   const result = await client.from("stripe_webhook_events").upsert(
     {
@@ -153,6 +157,7 @@ export async function markFoundingSessionManualReview(
     { onConflict: "stripe_event_id" },
   );
   throwIfError(result.error);
+  return marked;
 }
 
 export async function claimEmailOutboxJobs(limit = 10): Promise<OutboxJob[]> {

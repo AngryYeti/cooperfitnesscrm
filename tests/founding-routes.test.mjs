@@ -62,3 +62,27 @@ test("founding checkout configuration is documented and middleware routes are na
   assert.match(middleware, /api\/webhooks\/stripe\/founding/);
   assert.doesNotMatch(middleware, /pathname\.startsWith\("\/api\/webhooks"\)/);
 });
+
+test("founding invariants pin the approved product and fixed capacity", () => {
+  const config = text("src/lib/founding/config.ts");
+  assert.match(config, /prod_V5hcsMgIEK4Srk/);
+  assert.match(config, /capacity[^\n]*!==\s*5/);
+  assert.doesNotMatch(config, /capacity\s*<\s*1\s*\|\|\s*capacity\s*>\s*5/);
+});
+
+test("paid failures require manual review or a non-200 retry", () => {
+  const fulfillment = text("src/lib/founding/fulfillment.ts");
+  const store = text("src/lib/founding/store.ts");
+  const webhook = text("src/app/api/webhooks/stripe/founding/route.ts");
+  assert.match(fulfillment, /result\s*===\s*["']FAILED["']/);
+  assert.match(fulfillment, /markFoundingSessionManualReview/);
+  assert.match(store, /state:\s*["']MANUAL_REVIEW["']/);
+  assert.match(webhook, /Webhook processing failed/);
+});
+
+test("checkout cleanup falls back to reservation-only expiry", () => {
+  const checkout = text("src/app/api/founding/checkout-session/route.ts");
+  assert.match(checkout, /releaseFoundingReservation/);
+  assert.match(checkout, /expireUnattachedFoundingReservation/);
+  assert.match(checkout, /released/);
+});

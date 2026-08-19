@@ -59,8 +59,10 @@ export async function POST(request: Request) {
     });
   } catch {
     try {
-      if (session?.id) await releaseFoundingReservation(reservation.reservation_id, session.id);
-      else await expireUnattachedFoundingReservation(reservation.reservation_id);
+      const released = session?.id
+        ? await releaseFoundingReservation(reservation.reservation_id, session.id)
+        : false;
+      if (!released) await expireUnattachedFoundingReservation(reservation.reservation_id);
     } catch {
       console.error("[founding-checkout] reservation cleanup failed");
     }

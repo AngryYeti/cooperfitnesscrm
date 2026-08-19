@@ -2,6 +2,7 @@ import "server-only";
 import type { FoundingConfig } from "./types";
 
 const EXPECTED_PRICE_ID = "price_1U5WCxK67H8U3fOqXS60McFP";
+const APPROVED_PRODUCT_ID = "prod_V5hcsMgIEK4Srk";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export class FoundingConfigError extends Error {
@@ -61,8 +62,8 @@ export function getFoundingConfig(): FoundingConfig {
     throw new FoundingConfigError("Founding Stripe Price ID is not the approved price");
   }
   const stripeProductId = required("FOUNDING_STRIPE_PRODUCT_ID");
-  if (!/^prod_[A-Za-z0-9]+$/.test(stripeProductId)) {
-    throw new FoundingConfigError("Invalid founding Stripe Product ID");
+  if (stripeProductId !== APPROVED_PRODUCT_ID) {
+    throw new FoundingConfigError("Founding Stripe Product ID is not the approved product");
   }
   const expectedAmountCents = Number(required("FOUNDING_EXPECTED_AMOUNT_CENTS"));
   if (!Number.isInteger(expectedAmountCents) || expectedAmountCents !== 29900) {
@@ -73,8 +74,8 @@ export function getFoundingConfig(): FoundingConfig {
     throw new FoundingConfigError("Founding currency must be usd");
   }
   const capacity = Number(required("FOUNDING_CAPACITY"));
-  if (!Number.isInteger(capacity) || capacity < 1 || capacity > 5) {
-    throw new FoundingConfigError("Founding capacity must be between one and five");
+  if (!Number.isInteger(capacity) || capacity !== 5) {
+    throw new FoundingConfigError("Founding capacity must be exactly five");
   }
   const serviceTimezone = timezone(required("FOUNDING_SERVICE_TIMEZONE"));
   const siteOrigin = url("FOUNDING_SITE_ORIGIN");
@@ -108,4 +109,4 @@ export function getFoundingConfig(): FoundingConfig {
   };
 }
 
-export { EXPECTED_PRICE_ID };
+export { APPROVED_PRODUCT_ID, EXPECTED_PRICE_ID };
