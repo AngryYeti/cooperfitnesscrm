@@ -13,6 +13,7 @@ import {
   Sparkles,
   DollarSign,
   FileText,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const navItems = [
   { name: "Forms", href: "/forms", icon: FileText },
   { name: "Intake", href: "/intake", icon: ClipboardCheck },
   { name: "Revenue", href: "/revenue", icon: DollarSign },
+  { name: "Founding", href: "/founding", icon: ShieldAlert },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

@@ -93,6 +93,60 @@ export interface Activity {
   created_at: string;
 }
 
+export type FoundingPositionState =
+  | "AVAILABLE"
+  | "PENDING_CHECKOUT"
+  | "PURCHASED"
+  | "EXPIRED"
+  | "MANUAL_REVIEW";
+
+export type FoundingFulfillmentState =
+  | "NOT_STARTED"
+  | "PENDING"
+  | "FULFILLED"
+  | "MANUAL_REVIEW";
+
+export type FoundingEmailState =
+  | "NOT_QUEUED"
+  | "PENDING"
+  | "PROCESSING"
+  | "SENT"
+  | "FAILED"
+  | "CANCELLED";
+
+/** Dashboard-safe founding position data. Never include Stripe identifiers or payment data here. */
+export interface FoundingDashboardPosition {
+  positionNumber: number;
+  reservationId: string | null;
+  state: FoundingPositionState;
+  holdExpiresAt: string | null;
+  purchasedAt: string | null;
+  fulfillmentState: FoundingFulfillmentState;
+  emailState: FoundingEmailState;
+  emailAttempts: number;
+  emailNextAttemptAt: string | null;
+  contact: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+  } | null;
+  serviceStartAt: string | null;
+  serviceEndAt: string | null;
+  serviceTimezone: string | null;
+  operationalError: string | null;
+}
+
+export interface FoundingDashboardData {
+  campaignKey: string;
+  capacity: 5;
+  checkoutEnabled: boolean;
+  manualFull: boolean;
+  purchasedCount: number;
+  pendingCount: number;
+  positions: FoundingDashboardPosition[];
+}
+
 export type CalendarEventPriority = "normal" | "urgent";
 export type CalendarEventSource =
   | "website_inquiry"
