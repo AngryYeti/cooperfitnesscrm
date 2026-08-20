@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createUrgentLeadEvent } from "@/lib/urgent-lead-event";
 import { getFullName } from "@/lib/utils";
+import { sendFoundingWelcomeEmail } from "@/lib/welcome-email";
 
 export const dynamic = "force-dynamic";
 
@@ -239,8 +240,9 @@ async function handleLeadFromStripe({
     amount,
   });
 
+  let duplicateEvent = false;
   if (amount != null && amount > 0) {
-    await supabase.from("revenue").insert({
+    const { error: revenueError } = await supabase.from("revenue").insert({
       stripe_event_id: stripeEventId,
       contact_id: contactId,
       product_name: productName,
@@ -250,6 +252,37 @@ async function handleLeadFromStripe({
       source,
       stripe_created_at: stripeCreatedAt,
     });
+
+    // 23505 = unique violation on stripe_event_id, i.e. Stripe retried a
+    // delivery we already handled. Don't email the customer twice.
+    if (revenueError?.code === "23505") duplicateEvent = true;
+  }
+
+  let welcomeEmailSent = false;
+  if (!duplicateEvent) {
+    const welcome = await sendFoundingWelcomeEmail({
+      email,
+      firstName,
+      amount,
+    });
+    welcomeEmailSent = welcome.ok;
+
+    if (welcome.ok) {
+      await supabase.from("client_communications").insert({
+        contact_id: contactId,
+        direction: "outbound",
+        subject: welcome.subject,
+        body_text: "Founding offer welcome email (automated).",
+        sender_email: process.env.EMAIL_FROM || null,
+      });
+    } else {
+      console.error(
+        "[stripe-webhook]",
+        stripeEventId,
+        "welcome email failed:",
+        welcome.error
+      );
+    }
   }
 
   console.log("[stripe-webhook] processed purchase");
@@ -260,5 +293,6 @@ async function handleLeadFromStripe({
     urgentEventId: urgentEvent?.id ?? null,
     merged,
     amount,
+    welcomeEmailSent,
   };
 }
