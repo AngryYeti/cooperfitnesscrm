@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/founding/email-outbox",
-      "schedule": "*/10 * * * *"
+      "schedule": "30 12 * * *"
     }
   ]
 }
