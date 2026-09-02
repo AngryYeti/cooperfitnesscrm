@@ -29,13 +29,13 @@ export function renderFoundingWelcomeEmail(
   const subject = "Welcome to the Cooper Fitness Founding Cohort";
   const text = [
     `Hi ${details.firstName},`,
-    "Your six-month Cooper Fitness founding membership is confirmed.",
+    "Your 12-week Cooper Fitness founding membership is confirmed.",
     `Your term runs from ${start} through ${end}. We will reach out to begin onboarding, with your start expected within 14 days.`,
     "Next step: reply to this email with your preferred onboarding times, or use the onboarding link your coach sends you.",
     `Questions? Contact ${input.supportEmail}.`,
   ].join("\n\n");
   const html = `<p>Hi ${firstName},</p>
-<p>Your six-month Cooper Fitness founding membership is confirmed.</p>
+<p>Your 12-week Cooper Fitness founding membership is confirmed.</p>
 <p>Your term runs from <strong>${escapeHtml(start)}</strong> through <strong>${escapeHtml(end)}</strong>. We will reach out to begin onboarding, with your start expected within 14 days.</p>
 <p><strong>Next step:</strong> reply to this email with your preferred onboarding times, or use the onboarding link your coach sends you.</p>
 <p>Questions? Contact <a href="mailto:${support}">${support}</a>.</p>

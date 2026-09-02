@@ -1,10 +1,10 @@
 import "server-only";
 import type { FoundingConfig } from "./types";
 
-const EXPECTED_PRICE_ID = "price_1U5WCxK67H8U3fOqXS60McFP";
-const APPROVED_PRODUCT_ID = "prod_V5hcsMgIEK4Srk";
+const EXPECTED_PRICE_ID = "price_1UBFsOK67H8U3fOqRw3dEIhw";
+const APPROVED_PRODUCT_ID = "prod_VBd8KVVN9wW0cM";
 const EXPECTED_CAMPAIGN_KEY = "founding-fathers-2026";
-const EXPECTED_PRODUCT_NAME = "Cooper Fitness Founding Fathers — Six-Month Coaching";
+const EXPECTED_PRODUCT_NAME = "Cooper Fitness Founding Members — 12-Week Coaching";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export class FoundingConfigError extends Error {
@@ -73,8 +73,8 @@ export function getFoundingConfig(): FoundingConfig {
     throw new FoundingConfigError("Founding Stripe Product ID is not the approved product");
   }
   const expectedAmountCents = Number(required("FOUNDING_EXPECTED_AMOUNT_CENTS"));
-  if (!Number.isInteger(expectedAmountCents) || expectedAmountCents !== 29900) {
-    throw new FoundingConfigError("Founding amount must be exactly 29900 cents");
+  if (!Number.isInteger(expectedAmountCents) || expectedAmountCents !== 39900) {
+    throw new FoundingConfigError("Founding amount must be exactly 39900 cents");
   }
   const expectedCurrency = required("FOUNDING_EXPECTED_CURRENCY").toLowerCase();
   if (expectedCurrency !== "usd") {

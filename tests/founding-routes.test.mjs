@@ -30,7 +30,7 @@ test("checkout is server-authoritative and webhook uses raw-body verification", 
   assert.match(text("src/lib/founding/validation.ts"), /timingSafeEqual|constant.?time/i);
   assert.match(text("src/lib/founding/store.ts"), /create_founding_reservation/);
   assert.match(checkout, /expires_at/);
-  assert.match(text("src/lib/founding/config.ts"), /price_1U5WCxK67H8U3fOqXS60McFP/);
+  assert.match(text("src/lib/founding/config.ts"), /price_1UBFsOK67H8U3fOqRw3dEIhw/);
   assert.match(webhook, /request\.text\(\)/);
   assert.match(text("src/lib/founding/stripe.ts"), /constructEvent/);
   assert.match(webhook, /checkout\.session\.completed/);
@@ -66,7 +66,7 @@ test("founding checkout configuration is documented and middleware routes are na
 
 test("founding invariants pin the approved product and fixed capacity", () => {
   const config = text("src/lib/founding/config.ts");
-  assert.match(config, /prod_V5hcsMgIEK4Srk/);
+  assert.match(config, /prod_VBd8KVVN9wW0cM/);
   assert.match(config, /capacity[^\n]*!==\s*5/);
   assert.doesNotMatch(config, /capacity\s*<\s*1\s*\|\|\s*capacity\s*>\s*5/);
 });

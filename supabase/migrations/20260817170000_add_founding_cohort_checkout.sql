@@ -479,9 +479,9 @@ begin
   do update set updated_at = pg_catalog.now(), email = coalesce(public.contacts.email, excluded.email)
   returning id into v_contact_id;
 
-  -- Apply the six-month term to the local calendar in the cohort policy
+  -- Apply the 12-week term to the local calendar in the cohort policy
   -- timezone, then convert the resulting local instant back to timestamptz.
-  v_service_end := (v_paid_at at time zone v_cohort.service_timezone + interval '6 months')
+  v_service_end := (v_paid_at at time zone v_cohort.service_timezone + interval '12 weeks')
     at time zone v_cohort.service_timezone;
   insert into public.founding_memberships (
     reservation_id, stripe_session_id, stripe_payment_intent_id, contact_id,

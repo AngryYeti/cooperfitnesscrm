@@ -30,7 +30,7 @@ export async function createFoundingCheckoutSession(input: {
     client_reference_id: input.reservationId,
     metadata: {
       campaign: "founding-fathers-2026",
-      offer: "six-month-coaching",
+      offer: "12-week-coaching",
       cohort: "founding",
       campaign_key: input.config.campaignKey,
       reservation_id: input.reservationId,
@@ -84,7 +84,7 @@ export async function retrieveAndValidatePaidSession(
   if (session.metadata?.campaign_key !== config.campaignKey) throw new FoundingSessionValidationError("Founding campaign metadata mismatch");
   if (
     session.metadata?.campaign !== "founding-fathers-2026" ||
-    session.metadata?.offer !== "six-month-coaching" ||
+    session.metadata?.offer !== "12-week-coaching" ||
     session.metadata?.cohort !== "founding"
   ) {
     throw new FoundingSessionValidationError("Founding public metadata mismatch");
@@ -136,7 +136,7 @@ export function getSessionReservationId(session: Stripe.Checkout.Session, campai
   if (
     session.metadata?.campaign_key !== campaignKey ||
     session.metadata?.campaign !== "founding-fathers-2026" ||
-    session.metadata?.offer !== "six-month-coaching" ||
+    session.metadata?.offer !== "12-week-coaching" ||
     session.metadata?.cohort !== "founding"
   ) return null;
   const reservationId = stringValue(session.metadata?.reservation_id);

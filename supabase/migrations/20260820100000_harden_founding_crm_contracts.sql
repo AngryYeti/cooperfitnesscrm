@@ -107,13 +107,13 @@ declare
   v_reservation public.founding_reservations%rowtype;
 begin
   if pg_catalog.btrim(coalesce(p_campaign_key, '')) <> 'founding-fathers-2026'
-     or pg_catalog.btrim(coalesce(p_price_id, '')) <> 'price_1U5WCxK67H8U3fOqXS60McFP'
-     or pg_catalog.btrim(coalesce(p_product_id, '')) <> 'prod_V5hcsMgIEK4Srk'
+     or pg_catalog.btrim(coalesce(p_price_id, '')) <> 'price_1UBFsOK67H8U3fOqRw3dEIhw'
+     or pg_catalog.btrim(coalesce(p_product_id, '')) <> 'prod_VBd8KVVN9wW0cM'
      or pg_catalog.btrim(coalesce(p_event_type, '')) <> 'checkout.session.completed'
      or pg_catalog.btrim(coalesce(p_stripe_event_id, '')) = ''
      or pg_catalog.btrim(coalesce(p_stripe_session_id, '')) = ''
      or pg_catalog.btrim(coalesce(p_payment_intent_id, '')) = ''
-     or coalesce(p_amount_cents, -1) <> 29900
+     or coalesce(p_amount_cents, -1) <> 39900
      or pg_catalog.lower(pg_catalog.btrim(coalesce(p_currency, ''))) <> 'usd' then
     raise exception 'founding payment contract validation failed';
   end if;

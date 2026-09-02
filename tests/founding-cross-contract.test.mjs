@@ -10,7 +10,7 @@ const readPublic = (path) => readFileSync(new URL(path, publicRoot), "utf8");
 test("checkout metadata and redirect paths match the public verifier contract", () => {
   const stripe = read("src/lib/founding/stripe.ts");
   assert.match(stripe, /campaign:\s*["']founding-fathers-2026["']/);
-  assert.match(stripe, /offer:\s*["']six-month-coaching["']/);
+  assert.match(stripe, /offer:\s*["']12-week-coaching["']/);
   assert.match(stripe, /cohort:\s*["']founding["']/);
   assert.match(stripe, /campaign_key:\s*input\.config\.campaignKey/);
   assert.match(stripe, /reservation_id:\s*input\.reservationId/);
@@ -22,9 +22,9 @@ test("CRM checkout and public session verifier share the same exact offer contra
   const verifier = readPublic("src/lib/founding/session-status.ts");
   const env = read(".env.example");
   assert.match(verifier, /FOUNDING_CAMPAIGN\s*=\s*["']founding-fathers-2026["']/);
-  assert.match(verifier, /FOUNDING_OFFER\s*=\s*["']six-month-coaching["']/);
+  assert.match(verifier, /FOUNDING_OFFER\s*=\s*["']12-week-coaching["']/);
   assert.match(verifier, /FOUNDING_COHORT\s*=\s*["']founding["']/);
-  assert.match(verifier, /FOUNDING_AMOUNT\s*=\s*29900/);
+  assert.match(verifier, /FOUNDING_AMOUNT\s*=\s*39900/);
   assert.match(verifier, /FOUNDING_CURRENCY\s*=\s*["']usd["']/);
   assert.match(readPublic("src/app/(marketing)/founding/cancel/page.tsx"), /No payment was taken/);
   assert.match(env, /^FOUNDING_CAMPAIGN_KEY=founding-fathers-2026$/m);
@@ -72,9 +72,9 @@ test("fulfillment RPC pins campaign, event, price, amount, and currency", () => 
   assert.match(store, /p_product_id/);
   assert.match(sql, /p_campaign_key[^\n]*text[\s\S]*founding-fathers-2026/);
   assert.match(sql, /p_event_type[\s\S]{0,160}'checkout\.session\.completed'/i);
-  assert.match(sql, /p_price_id[\s\S]{0,160}'price_1U5WCxK67H8U3fOqXS60McFP'/i);
-  assert.match(sql, /p_product_id[\s\S]{0,160}'prod_V5hcsMgIEK4Srk'/i);
-  assert.match(sql, /p_amount_cents[\s\S]{0,40}<>\s*29900/i);
+  assert.match(sql, /p_price_id[\s\S]{0,160}'price_1UBFsOK67H8U3fOqRw3dEIhw'/i);
+  assert.match(sql, /p_product_id[\s\S]{0,160}'prod_VBd8KVVN9wW0cM'/i);
+  assert.match(sql, /p_amount_cents[\s\S]{0,40}<>\s*39900/i);
   assert.match(sql, /p_currency[\s\S]{0,160}'usd'/i);
 });
 
